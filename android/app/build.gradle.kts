@@ -1,7 +1,8 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // يجب أن يأتي ملحق Flutter بعد ملحقات Android و Kotlin
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -15,10 +16,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
     defaultConfig {
         applicationId = "com.example.tissemsilt_edu"
         minSdk = flutter.minSdkVersion
@@ -29,9 +26,14 @@ android {
 
     buildTypes {
         release {
-            // التوقيع بمفاتيح التصحيح مؤقتاً لتسهيل بناء وتثبيت ملف APK
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
