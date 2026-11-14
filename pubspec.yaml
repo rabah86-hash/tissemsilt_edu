@@ -1,22 +1,26 @@
 name: tissemsilt_edu
-description: "تطبيق رصد أخبار قطاع التربية لولاية تيسمسيلت والجزائر"
+description: "راصد التربية - تيسمسيلت والمديريات 69"
 publish_to: 'none'
-
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.2.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  http: any
-  url_launcher: any
-  shared_preferences: any
+  cupertino_icons: ^1.0.8
+  http: ^1.2.2
+  xml: ^6.5.0
+  url_launcher: ^6.3.1
+  receive_sharing_intent: ^1.8.0
+  shared_preferences: ^2.3.2
+  share_plus: ^10.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
