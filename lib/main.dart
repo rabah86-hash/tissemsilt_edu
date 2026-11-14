@@ -1,33 +1,3 @@
-name: tissemsilt_edu
-description: "خلية الاعلام والاتصال تيسمسيلت"
-publish_to: 'none'
-version: 1.0.1+2
-
-environment:
-  sdk: '>=3.2.0 <4.0.0'
-
-dependencies:
-  flutter:
-    sdk: flutter
-  cupertino_icons: ^1.0.8
-  http: ^1.2.2
-  xml: ^6.5.0
-  url_launcher: ^6.3.1
-  receive_sharing_intent: ^1.8.0
-  shared_preferences: ^2.3.2
-  share_plus: ^10.1.0
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
-
-flutter:
-  uses-material-design: true
-3. ملف lib/main.dart (الكود الكامل المتكامل)
-افتح ملف lib/main.dart وامسحه بالكامل، ثم الصق هذا الكود المتكامل (يعمل باللغة العربية، يجلب أخبار الوزارة والمديريات من خلاصات RSS ومصادر Google News التربوية الموثوقة دون حظر، ويستقبل أي رابط أو منشور تشاركه من فيسبوك أو يوتيوب ويحفظه في تبويب خاص):
-
-Dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -67,12 +37,14 @@ class RasedTarbiyaApp extends StatelessWidget {
 }
 
 class NewsArticle {
+  final String? id;
   final String title;
   final String source;
   final String url;
   final String date;
 
   NewsArticle({
+    this.id,
     required this.title,
     required this.source,
     required this.url,
@@ -86,7 +58,9 @@ class NewsArticle {
         'date': date,
       };
 
-  factory NewsArticle.fromJson(Map<String, dynamic> json) => NewsArticle(
+  factory NewsArticle.fromJson(Map<String, dynamic> json, {String? id}) =>
+      NewsArticle(
+        id: id,
         title: json['title'] ?? '',
         source: json['source'] ?? '',
         url: json['url'] ?? '',
@@ -103,15 +77,24 @@ class MainDashboardScreen extends StatefulWidget {
 
 class _MainDashboardScreenState extends State<MainDashboardScreen>
     with SingleTickerProviderStateMixin {
+  // إعدادات قاعدة البيانات السحابية ورمز المشرف
+  static const String _firebaseDbUrl =
+      'https://tissemsilt-edu-default-rtdb.firebaseio.com/shared_posts.json';
+  static const String _firebaseBaseUrl =
+      'https://tissemsilt-edu-default-rtdb.firebaseio.com/shared_posts';
+  static const String _adminPin = '2026'; // الرمز السري للنشر للجميع
+
   late TabController _tabController;
   late StreamSubscription _intentSub;
 
   List<NewsArticle> _tissemsiltNews = [];
   List<NewsArticle> _nationalNews = [];
-  List<NewsArticle> _sharedSavedNews = [];
+  List<NewsArticle> _cloudSharedNews = [];
 
   bool _isLoadingTissemsilt = true;
   bool _isLoadingNational = true;
+  bool _isLoadingCloud = true;
+
   String? _errorTissemsilt;
   String? _errorNational;
 
@@ -119,8 +102,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadSavedSharedNews();
-    _fetchAllNews();
+    _fetchAllData();
     _initSharingIntent();
   }
 
@@ -129,7 +111,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
     _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen(
       (List<SharedMediaFile> value) {
         if (value.isNotEmpty) {
-          _processSharedText(value.first.path);
+          _preparePublishDialog(value.first.path);
         }
       },
       onError: (err) => debugPrint("Share Stream Error: $err"),
@@ -138,17 +120,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
     ReceiveSharingIntent.instance.getInitialMedia().then(
       (List<SharedMediaFile> value) {
         if (value.isNotEmpty) {
-          _processSharedText(value.first.path);
+          _preparePublishDialog(value.first.path);
           ReceiveSharingIntent.instance.reset();
         }
       },
     );
   }
 
-  Future<void> _processSharedText(String rawText) async {
+  // نافذة تأكيد النشر السحابي للجميع عند مشاركة رابط من فيسبوك أو يوتيوب
+  Future<void> _preparePublishDialog(String rawText) async {
     if (rawText.trim().isEmpty) return;
 
-    // استخراج الرابط من النص في حال أرسل فيسبوك أو يوتيوب عنواناً مع الرابط
     final RegExp urlRegExp = RegExp(r'(https?:\/\/[^\s]+)');
     final Match? match = urlRegExp.firstMatch(rawText);
     final String extractedUrl = match != null ? match.group(0)! : rawText.trim();
@@ -160,68 +142,253 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
       sourceLabel = "منشور فيسبوك";
     }
 
-    String cleanTitle = rawText.replaceAll(extractedUrl, '').trim();
-    if (cleanTitle.isEmpty) {
-      cleanTitle = "محتوى مرصود من $sourceLabel";
+    String initialTitle = rawText.replaceAll(extractedUrl, '').trim();
+    if (initialTitle.isEmpty) {
+      initialTitle = "مستجد تربوي ($sourceLabel)";
     }
 
-    final newArticle = NewsArticle(
-      title: cleanTitle,
-      source: sourceLabel,
-      url: extractedUrl,
-      date: DateTime.now().toString().substring(0, 16),
-    );
+    final prefs = await SharedPreferences.getInstance();
+    final savedPin = prefs.getString('saved_admin_pin') ?? '';
+
+    final titleController = TextEditingController(text: initialTitle);
+    final pinController = TextEditingController(text: savedPin);
+
+    if (!mounted) return;
 
     setState(() {
-      _sharedSavedNews.insert(0, newArticle);
-      _tabController.animateTo(2); // الانتقال تلقائياً لتبويب المرصودات المشتركة
+      _tabController.animateTo(2);
     });
 
-    await _saveSharedNewsToStorage();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.campaign, color: Color(0xFF0D47A1)),
+              const SizedBox(width: 8),
+              Expanded(child: Text("نشر $sourceLabel للجميع")),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("عنوان الخبر أو الفيديو:", style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: titleController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  extractedUrl,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, color: Colors.blue),
+                ),
+                const SizedBox(height: 12),
+                const Text("رمز المشرف السري:", style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: pinController,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    hintText: "أدخل الرمز للنشر السحابي",
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("إلغاء", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D47A1),
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.send, size: 18),
+              label: const Text("نشر للجميع"),
+              onPressed: () async {
+                if (pinController.text.trim() != _adminPin) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("رمز المشرف غير صحيح!"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("تمت إضافة $sourceLabel إلى قائمة المرصودات بنجاح"),
-          backgroundColor: Colors.green.shade800,
-          duration: const Duration(seconds: 3),
+                await prefs.setString('saved_admin_pin', pinController.text.trim());
+                if (ctx.mounted) Navigator.pop(ctx);
+
+                await _publishToFirebase(
+                  title: titleController.text.trim().isEmpty
+                      ? initialTitle
+                      : titleController.text.trim(),
+                  source: sourceLabel,
+                  url: extractedUrl,
+                );
+              },
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  // إرسال المنشور إلى Firebase ليظهر لدى جميع المستخدمين
+  Future<void> _publishToFirebase({
+    required String title,
+    required String source,
+    required String url,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final formattedDate =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+
+      final newPost = {
+        'title': title,
+        'source': source,
+        'url': url,
+        'date': formattedDate,
+        'timestamp': now.millisecondsSinceEpoch,
+      };
+
+      final response = await http.post(
+        Uri.parse(_firebaseDbUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(newPost),
       );
+
+      if (response.statusCode == 200) {
+        await _fetchCloudSharedNews();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text("تم النشر بنجاح! يظهر الآن لدى جميع مستخدمي التطبيق."),
+              backgroundColor: Colors.green.shade800,
+            ),
+          );
+        }
+      } else {
+        throw Exception("فشل النشر: ${response.statusCode}");
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("تعذر النشر السحابي، تأكد من اتصال الإنترنت."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _loadSavedSharedNews() async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<String>? encodedList = prefs.getStringList('saved_shared_news');
-    if (encodedList != null) {
-      setState(() {
-        _sharedSavedNews = encodedList
-            .map((item) => NewsArticle.fromJson(jsonDecode(item)))
-            .toList();
-      });
+  // جلب المنشورات المشتركة من السحابة لجميع المستخدمين
+  Future<void> _fetchCloudSharedNews() async {
+    setState(() => _isLoadingCloud = true);
+    try {
+      final response = await http
+          .get(Uri.parse(_firebaseDbUrl))
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        final List<NewsArticle> loaded = [];
+
+        if (decoded != null && decoded is Map<String, dynamic>) {
+          decoded.forEach((key, value) {
+            if (value is Map<String, dynamic>) {
+              loaded.add(NewsArticle.fromJson(value, id: key));
+            }
+          });
+        }
+
+        // ترتيب المنشورات من الأحدث إلى الأقدم
+        setState(() {
+          _cloudSharedNews = loaded.reversed.toList();
+          _isLoadingCloud = false;
+        });
+      } else {
+        setState(() => _isLoadingCloud = false);
+      }
+    } catch (e) {
+      setState(() => _isLoadingCloud = false);
     }
   }
 
-  Future<void> _saveSharedNewsToStorage() async {
+  // حذف منشور من السحابة (للمشرف فقط)
+  Future<void> _confirmDeleteCloudPost(NewsArticle article) async {
+    if (article.id == null) return;
     final prefs = await SharedPreferences.getInstance();
-    final List<String> encodedList =
-        _sharedSavedNews.map((item) => jsonEncode(item.toJson())).toList();
-    await prefs.setStringList('saved_shared_news', encodedList);
+    final savedPin = prefs.getString('saved_admin_pin') ?? '';
+    final pinController = TextEditingController(text: savedPin);
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text("حذف المنشور من عند الجميع"),
+          content: TextField(
+            controller: pinController,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: "رمز المشرف للتأكيد",
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("إلغاء"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                if (pinController.text.trim() != _adminPin) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("رمز المشرف غير صحيح!")),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+                await http.delete(Uri.parse('$_firebaseBaseUrl/${article.id}.json'));
+                await _fetchCloudSharedNews();
+              },
+              child: const Text("حذف نهائي", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Future<void> _deleteSharedItem(int index) async {
-    setState(() {
-      _sharedSavedNews.removeAt(index);
-    });
-    await _saveSharedNewsToStorage();
-  }
-
-  Future<void> _fetchAllNews() async {
+  Future<void> _fetchAllData() async {
     _fetchTissemsiltNews();
     _fetchNationalNews();
+    _fetchCloudSharedNews();
   }
 
-  // جلب أخبار مديرية التربية لتيسمسيلت والولاية
   Future<void> _fetchTissemsiltNews() async {
     setState(() {
       _isLoadingTissemsilt = true;
@@ -244,7 +411,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
     }
   }
 
-  // جلب أخبار وزارة التربية الوطنية والمديريات 69
   Future<void> _fetchNationalNews() async {
     setState(() {
       _isLoadingNational = true;
@@ -289,7 +455,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
       final pubDate = node.findElements('pubDate').firstOrNull?.innerText ?? '';
       final sourceName = node.findElements('source').firstOrNull?.innerText ?? defaultSource;
 
-      // تنظيف التاريخ
       String shortDate = pubDate;
       if (pubDate.length > 16) {
         shortDate = pubDate.substring(0, 16);
@@ -344,8 +509,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'تحديث الأخبار',
-            onPressed: _fetchAllNews,
+            tooltip: 'تحديث الكل',
+            onPressed: _fetchAllData,
           ),
         ],
         bottom: TabBar(
@@ -358,11 +523,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
             const Tab(icon: Icon(Icons.account_balance), text: 'الوزارة والمديريات'),
             Tab(
               icon: Badge(
-                label: Text('${_sharedSavedNews.length}'),
-                isLabelVisible: _sharedSavedNews.isNotEmpty,
-                child: const Icon(Icons.bookmark_added),
+                label: Text('${_cloudSharedNews.length}'),
+                isLabelVisible: _cloudSharedNews.isNotEmpty,
+                child: const Icon(Icons.campaign),
               ),
-              text: 'مرصوداتي',
+              text: 'مرصودات الإدارة',
             ),
           ],
         ),
@@ -384,7 +549,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
             onRefresh: _fetchNationalNews,
             emptyText: 'لا توجد أخبار وطنية حالياً. اسحب للأسفل للتحديث.',
           ),
-          _buildSharedListView(),
+          _buildCloudSharedListView(),
         ],
       ),
     );
@@ -485,85 +650,102 @@ class _MainDashboardScreenState extends State<MainDashboardScreen>
     );
   }
 
-  Widget _buildSharedListView() {
-    if (_sharedSavedNews.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.share_arrival_time, size: 60, color: Colors.blueGrey),
-              SizedBox(height: 16),
-              Text(
-                'قائمة المرصودات فارغة',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'أثناء تصفحك لفيسبوك أو يوتيوب، اضغط على زر "مشاركة" واختر تطبيق "راصد التربية" لحفظ الفيديو أو المنشور هنا فوراً.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54),
-              ),
-            ],
-          ),
+  Widget _buildCloudSharedListView() {
+    if (_isLoadingCloud) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_cloudSharedNews.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _fetchCloudSharedNews,
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: const [
+            SizedBox(height: 100),
+            Icon(Icons.campaign_outlined, size: 60, color: Colors.blueGrey),
+            SizedBox(height: 16),
+            Text(
+              'لا توجد منشورات إدارية مرصودة حالياً',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'أي فيديو يوتيوب أو منشور فيسبوك يشاركه المشرف سيظهر هنا تلقائياً لدى جميع مستخدمي التطبيق.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.black54),
+            ),
+          ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(10),
-      itemCount: _sharedSavedNews.length,
-      itemBuilder: (context, index) {
-        final item = _sharedSavedNews[index];
-        final bool isYoutube = item.source.contains('يوتيوب');
-        final bool isFacebook = item.source.contains('فيسبوك');
+    return RefreshIndicator(
+      onRefresh: _fetchCloudSharedNews,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(10),
+        itemCount: _cloudSharedNews.length,
+        itemBuilder: (context, index) {
+          final item = _cloudSharedNews[index];
+          final bool isYoutube = item.source.contains('يوتيوب');
+          final bool isFacebook = item.source.contains('فيسبوك');
 
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: isYoutube
-                  ? Colors.red.shade100
-                  : (isFacebook ? Colors.blue.shade100 : Colors.grey.shade200),
-              child: Icon(
-                isYoutube
-                    ? Icons.play_circle_fill
-                    : (isFacebook ? Icons.facebook : Icons.link),
-                color: isYoutube
-                    ? Colors.red
-                    : (isFacebook ? Colors.blue.shade800 : Colors.black87),
+          return Card(
+            elevation: 2,
+            margin: const EdgeInsets.only(bottom: 10),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: isYoutube
+                    ? Colors.red.shade100
+                    : (isFacebook ? Colors.blue.shade100 : Colors.grey.shade200),
+                child: Icon(
+                  isYoutube
+                      ? Icons.play_circle_fill
+                      : (isFacebook ? Icons.facebook : Icons.link),
+                  color: isYoutube
+                      ? Colors.red
+                      : (isFacebook ? Colors.blue.shade800 : Colors.black87),
+                ),
               ),
+              title: Text(
+                item.title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    item.url,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: Colors.blue),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${item.source} • ${item.date}',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.share, color: Colors.grey, size: 20),
+                    onPressed: () => Share.share('${item.title}\n${item.url}'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                    onPressed: () => _confirmDeleteCloudPost(item),
+                  ),
+                ],
+              ),
+              onTap: () => _openUrl(item.url),
             ),
-            title: Text(
-              item.title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text(
-                  item.url,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: Colors.blue),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${item.source} • ${item.date}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ],
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              onPressed: () => _deleteSharedItem(index),
-            ),
-            onTap: () => _openUrl(item.url),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
+}
