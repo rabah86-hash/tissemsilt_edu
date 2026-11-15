@@ -61,7 +61,7 @@ class _NewsDashboardState extends State<NewsDashboard>
   String selectedTab = "Ø§Ù„ÙƒÙ„";
   int maxDaysOld = 7;
 
-  List> newsList = [];
+  List newsList = [];
 
   final List<String> tissemsiltKeywords = [
     "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª", "Ø«Ù†ÙŠØ© Ø§Ù„Ø­Ø¯", "Ø¨Ø±Ø¬ Ø¨ÙˆÙ†Ø¹Ø§Ù…Ø©", "Ø®Ù…ÙŠØ³ØªÙŠ", "Ù„Ø±Ø¬Ø§Ù…",
@@ -347,7 +347,7 @@ class _NewsDashboardState extends State<NewsDashboard>
     final String afterDateStr =
         "${cutoffDate.year}-${cutoffDate.month.toString().padLeft(2, '0')}-${cutoffDate.day.toString().padLeft(2, '0')}";
 
-    final List> queries = [
+    final List queries = [
       {
         "q": "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª ØªØ±Ø¨ÙŠØ© OR Ù…Ø¯ÙŠØ±ÙŠØ© Ø§Ù„ØªØ±Ø¨ÙŠØ© ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª after:$afterDateStr",
         "type": "press",
@@ -826,7 +826,7 @@ class _NewsDashboardState extends State<NewsDashboard>
 
   @override
   Widget build(BuildContext context) {
-    final List> filteredNews = newsList.where((item) {
+    final List filteredNews = newsList.where((item) {
       bool matchesTab = true;
       if (selectedTab == "ÙÙŠØ³Ø¨ÙˆÙƒ") {
         matchesTab = item["type"] == "facebook" || item["cloudId"] != null;
