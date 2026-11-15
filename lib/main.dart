@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -148,7 +148,7 @@ class _NewsDashboardState extends State
   }
 
   // جلب عنوان الخبر الحقيقي تلقائياً من رابط يوتيوب أو فيسبوك أو موقع إلكتروني
-  Future> _autoFetchLinkMetadata(String url) async {
+  Future _autoFetchLinkMetadata(String url) async {
     String detectedTitle = "";
     String detectedAuthor = "";
 
@@ -433,7 +433,7 @@ class _NewsDashboardState extends State
         .trim();
   }
 
-  Future<List> _fetchSingleChannel(Map queryObj) async {
+  Future<List _fetchSingleChannel(Map queryObj) async {
     final String qText = queryObj["q"].toString();
     final String qType = queryObj["type"].toString();
     final bool forceLocal = queryObj["forceLocal"] == true;
@@ -610,7 +610,7 @@ class _NewsDashboardState extends State
       {"q": "site:youtube.com أخبار التربية والتعليم الجزائر OR مسابقة الأساتذة OR البكالوريا $timeFilter", "type": "tv", "forceLocal": false},
     ];
 
-    final List<List> allBatches =
+    final List<List allBatches =
         await Future.wait(queries.map((q) => _fetchSingleChannel(q as Map)));
 
     int addedCount = 0;
