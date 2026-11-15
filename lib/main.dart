@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -18,7 +18,7 @@ class TissemsiltNewsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'راصد التربية - تيسمسيلت',
+      title: 'Ø±Ø§ØµØ¯ Ø§Ù„ØªØ±Ø¨ÙŠØ© - ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: false,
@@ -58,24 +58,24 @@ class _NewsDashboardState extends State<NewsDashboard>
   late StreamSubscription _intentSub;
   bool isScanning = false;
   String searchQuery = "";
-  String selectedTab = "الكل";
+  String selectedTab = "Ø§Ù„ÙƒÙ„";
   int maxDaysOld = 7;
 
   List> newsList = [];
 
   final List<String> tissemsiltKeywords = [
-    "تيسمسيلت", "ثنية الحد", "برج بونعامة", "خميستي", "لرجام",
-    "عماري", "بوقايد", "الأزهرية", "برج الأمير عبد القادر", "سيدي سليمان",
-    "أولاد بسام", "ملعب", "سيدي عابد", "تملاحت", "سيدي بوتشنت",
-    "العيون", "اليوسفية", "سيدي العنتري", "معاصم"
+    "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª", "Ø«Ù†ÙŠØ© Ø§Ù„Ø­Ø¯", "Ø¨Ø±Ø¬ Ø¨ÙˆÙ†Ø¹Ø§Ù…Ø©", "Ø®Ù…ÙŠØ³ØªÙŠ", "Ù„Ø±Ø¬Ø§Ù…",
+    "Ø¹Ù…Ø§Ø±ÙŠ", "Ø¨ÙˆÙ‚Ø§ÙŠØ¯", "Ø§Ù„Ø£Ø²Ù‡Ø±ÙŠØ©", "Ø¨Ø±Ø¬ Ø§Ù„Ø£Ù…ÙŠØ± Ø¹Ø¨Ø¯ Ø§Ù„Ù‚Ø§Ø¯Ø±", "Ø³ÙŠØ¯ÙŠ Ø³Ù„ÙŠÙ…Ø§Ù†",
+    "Ø£ÙˆÙ„Ø§Ø¯ Ø¨Ø³Ø§Ù…", "Ù…Ù„Ø¹Ø¨", "Ø³ÙŠØ¯ÙŠ Ø¹Ø§Ø¨Ø¯", "ØªÙ…Ù„Ø§Ø­Øª", "Ø³ÙŠØ¯ÙŠ Ø¨ÙˆØªØ´Ù†Øª",
+    "Ø§Ù„Ø¹ÙŠÙˆÙ†", "Ø§Ù„ÙŠÙˆØ³ÙÙŠØ©", "Ø³ÙŠØ¯ÙŠ Ø§Ù„Ø¹Ù†ØªØ±ÙŠ", "Ù…Ø¹Ø§ØµÙ…"
   ];
 
   final List<String> tabs = [
-    "الكل",
-    "تيسمسيلت",
-    "وطني",
-    "تقارير متلفزة",
-    "فيسبوك"
+    "Ø§Ù„ÙƒÙ„",
+    "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª",
+    "ÙˆØ·Ù†ÙŠ",
+    "ØªÙ‚Ø§Ø±ÙŠØ± Ù…ØªÙ„ÙØ²Ø©",
+    "ÙÙŠØ³Ø¨ÙˆÙƒ"
   ];
 
   @override
@@ -93,7 +93,7 @@ class _NewsDashboardState extends State<NewsDashboard>
     _initSharingIntent();
   }
 
-  // استقبال الروابط والمنشورات المشتركة من فيسبوك ويوتيوب
+  // Ø§Ø³ØªÙ‚Ø¨Ø§Ù„ Ø§Ù„Ø±ÙˆØ§Ø¨Ø· ÙˆØ§Ù„Ù…Ù†Ø´ÙˆØ±Ø§Øª Ø§Ù„Ù…Ø´ØªØ±ÙƒØ© Ù…Ù† ÙÙŠØ³Ø¨ÙˆÙƒ ÙˆÙŠÙˆØªÙŠÙˆØ¨
   void _initSharingIntent() {
     _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen(
       (List<SharedMediaFile> value) {
@@ -114,7 +114,7 @@ class _NewsDashboardState extends State<NewsDashboard>
     );
   }
 
-  // فتح نافذة الإضافة والنشر الفوري للجميع عند مشاركة رابط من فيسبوك أو يوتيوب
+  // ÙØªØ­ Ù†Ø§ÙØ°Ø© Ø§Ù„Ø¥Ø¶Ø§ÙØ© ÙˆØ§Ù„Ù†Ø´Ø± Ø§Ù„ÙÙˆØ±ÙŠ Ù„Ù„Ø¬Ù…ÙŠØ¹ Ø¹Ù†Ø¯ Ù…Ø´Ø§Ø±ÙƒØ© Ø±Ø§Ø¨Ø· Ù…Ù† ÙÙŠØ³Ø¨ÙˆÙƒ Ø£Ùˆ ÙŠÙˆØªÙŠÙˆØ¨
   void _openQuickShareFromExternalApp(String rawSharedText) {
     if (rawSharedText.trim().isEmpty) return;
 
@@ -133,9 +133,9 @@ class _NewsDashboardState extends State<NewsDashboard>
       prefillTitle: extractedTitle.isNotEmpty
           ? extractedTitle
           : (isYoutube
-              ? "فيديو تربوي مرصود عبر يوتيوب"
-              : "منشور تربوي مرصود عبر فيسبوك"),
-      defaultCategory: isYoutube ? "تقارير متلفزة" : "تيسمسيلت",
+              ? "ÙÙŠØ¯ÙŠÙˆ ØªØ±Ø¨ÙˆÙŠ Ù…Ø±ØµÙˆØ¯ Ø¹Ø¨Ø± ÙŠÙˆØªÙŠÙˆØ¨"
+              : "Ù…Ù†Ø´ÙˆØ± ØªØ±Ø¨ÙˆÙŠ Ù…Ø±ØµÙˆØ¯ Ø¹Ø¨Ø± ÙÙŠØ³Ø¨ÙˆÙƒ"),
+      defaultCategory: isYoutube ? "ØªÙ‚Ø§Ø±ÙŠØ± Ù…ØªÙ„ÙØ²Ø©" : "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª",
     );
   }
 
@@ -154,7 +154,7 @@ class _NewsDashboardState extends State<NewsDashboard>
       }
     } catch (_) {}
 
-    // جلب المنشورات السحابية المشتركة + تحديث الأخبار الحية تلقائياً
+    // Ø¬Ù„Ø¨ Ø§Ù„Ù…Ù†Ø´ÙˆØ±Ø§Øª Ø§Ù„Ø³Ø­Ø§Ø¨ÙŠØ© Ø§Ù„Ù…Ø´ØªØ±ÙƒØ© + ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø£Ø®Ø¨Ø§Ø± Ø§Ù„Ø­ÙŠØ© ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹
     await _fetchCloudPosts();
     if (newsList.isEmpty) {
       runSmartRadarBot();
@@ -168,7 +168,7 @@ class _NewsDashboardState extends State<NewsDashboard>
     } catch (_) {}
   }
 
-  // جلب المنشورات المشتركة من Firebase لتظهر عند جميع المستخدمين
+  // Ø¬Ù„Ø¨ Ø§Ù„Ù…Ù†Ø´ÙˆØ±Ø§Øª Ø§Ù„Ù…Ø´ØªØ±ÙƒØ© Ù…Ù† Firebase Ù„ØªØ¸Ù‡Ø± Ø¹Ù†Ø¯ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ†
   Future<void> _fetchCloudPosts() async {
     try {
       final response = await http
@@ -196,13 +196,13 @@ class _NewsDashboardState extends State<NewsDashboard>
                 "cloudId": key,
                 "title": title,
                 "summary": (value["summary"] ?? title).toString(),
-                "source": (value["source"] ?? "رصد الإدارة المباشر").toString(),
-                "category": (value["category"] ?? "تيسمسيلت").toString(),
+                "source": (value["source"] ?? "Ø±ØµØ¯ Ø§Ù„Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ø¨Ø§Ø´Ø±").toString(),
+                "category": (value["category"] ?? "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª").toString(),
                 "type": (value["type"] ?? "facebook").toString(),
                 "time": timeInfo["display"],
                 "timestamp": ts,
                 "url": url,
-                "important": (value["category"] ?? "تيسمسيلت") == "تيسمسيلت",
+                "important": (value["category"] ?? "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª") == "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª",
               };
 
               if (existingIndex == -1) {
@@ -221,7 +221,7 @@ class _NewsDashboardState extends State<NewsDashboard>
     } catch (_) {}
   }
 
-  // رفع المنشور أو الفيديو إلى Firebase ليظهر لدى جميع المستخدمين فوراً
+  // Ø±ÙØ¹ Ø§Ù„Ù…Ù†Ø´ÙˆØ± Ø£Ùˆ Ø§Ù„ÙÙŠØ¯ÙŠÙˆ Ø¥Ù„Ù‰ Firebase Ù„ÙŠØ¸Ù‡Ø± Ù„Ø¯Ù‰ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ† ÙÙˆØ±Ø§Ù‹
   Future<void> _publishPostToCloud(Map<String, dynamic> postData) async {
     try {
       final response = await http.post(
@@ -237,7 +237,7 @@ class _NewsDashboardState extends State<NewsDashboard>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text("تم النشر السحابي بنجاح! يظهر الآن لدى جميع مستخدمي التطبيق."),
+              content: const Text("ØªÙ… Ø§Ù„Ù†Ø´Ø± Ø§Ù„Ø³Ø­Ø§Ø¨ÙŠ Ø¨Ù†Ø¬Ø§Ø­! ÙŠØ¸Ù‡Ø± Ø§Ù„Ø¢Ù† Ù„Ø¯Ù‰ Ø¬Ù…ÙŠØ¹ Ù…Ø³ØªØ®Ø¯Ù…ÙŠ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚."),
               backgroundColor: Colors.green.shade800,
             ),
           );
@@ -247,7 +247,7 @@ class _NewsDashboardState extends State<NewsDashboard>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("تم الحفظ محلياً (تعذر الوصول للسحابة، تحقق من الإنترنت)."),
+            content: Text("ØªÙ… Ø§Ù„Ø­ÙØ¸ Ù…Ø­Ù„ÙŠØ§Ù‹ (ØªØ¹Ø°Ø± Ø§Ù„ÙˆØµÙˆÙ„ Ù„Ù„Ø³Ø­Ø§Ø¨Ø©ØŒ ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ø¥Ù†ØªØ±Ù†Øª)."),
             backgroundColor: Colors.orange,
           ),
         );
@@ -286,13 +286,13 @@ class _NewsDashboardState extends State<NewsDashboard>
     final diff = now.difference(parsed);
     String relative = "";
     if (diff.inMinutes < 2) {
-      relative = "الآن";
+      relative = "Ø§Ù„Ø¢Ù†";
     } else if (diff.inMinutes < 60) {
-      relative = "منذ ${diff.inMinutes} دقيقة";
+      relative = "Ù…Ù†Ø° ${diff.inMinutes} Ø¯Ù‚ÙŠÙ‚Ø©";
     } else if (diff.inHours < 24) {
-      relative = "منذ ${diff.inHours} ساعة";
+      relative = "Ù…Ù†Ø° ${diff.inHours} Ø³Ø§Ø¹Ø©";
     } else {
-      relative = "منذ ${diff.inDays} يوم";
+      relative = "Ù…Ù†Ø° ${diff.inDays} ÙŠÙˆÙ…";
     }
 
     String clock =
@@ -318,12 +318,12 @@ class _NewsDashboardState extends State<NewsDashboard>
         .trim();
 
     if (text.length < 25 || text == fallbackTitle) {
-      return "ملخص الخبر: $fallbackTitle. (اضغط لعرض التفاصيل الكاملة أو فتح التقرير الأصلي).";
+      return "Ù…Ù„Ø®Øµ Ø§Ù„Ø®Ø¨Ø±: $fallbackTitle. (Ø§Ø¶ØºØ· Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙØ§ØµÙŠÙ„ Ø§Ù„ÙƒØ§Ù…Ù„Ø© Ø£Ùˆ ÙØªØ­ Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ø£ØµÙ„ÙŠ).";
     }
     return text.length > 260 ? "${text.substring(0, 260)}..." : text;
   }
 
-  // الروبوت الموسع: اتصال مباشر ومستقر بـ Google News RSS مع فلترة صارمة للتاريخ الحديث
+  // Ø§Ù„Ø±ÙˆØ¨ÙˆØª Ø§Ù„Ù…ÙˆØ³Ø¹: Ø§ØªØµØ§Ù„ Ù…Ø¨Ø§Ø´Ø± ÙˆÙ…Ø³ØªÙ‚Ø± Ø¨Ù€ Google News RSS Ù…Ø¹ ÙÙ„ØªØ±Ø© ØµØ§Ø±Ù…Ø© Ù„Ù„ØªØ§Ø±ÙŠØ® Ø§Ù„Ø­Ø¯ÙŠØ«
   Future<void> runSmartRadarBot() async {
     if (isScanning) return;
     setState(() => isScanning = true);
@@ -332,7 +332,7 @@ class _NewsDashboardState extends State<NewsDashboard>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'جاري مسح 8 قنوات إخبارية وتلفزيونية (أخبار آخر $maxDaysOld أيام فقط)...'),
+              'Ø¬Ø§Ø±ÙŠ Ù…Ø³Ø­ 8 Ù‚Ù†ÙˆØ§Øª Ø¥Ø®Ø¨Ø§Ø±ÙŠØ© ÙˆØªÙ„ÙØ²ÙŠÙˆÙ†ÙŠØ© (Ø£Ø®Ø¨Ø§Ø± Ø¢Ø®Ø± $maxDaysOld Ø£ÙŠØ§Ù… ÙÙ‚Ø·)...'),
           backgroundColor: const Color(0xFF1A237E),
           duration: const Duration(seconds: 3),
         ),
@@ -341,7 +341,7 @@ class _NewsDashboardState extends State<NewsDashboard>
 
     await _fetchCloudPosts();
 
-    // حساب تاريخ البداية الدقيق بصيغة YYYY-MM-DD لإجبار محرك الأخبار على جلب الحديث فقط
+    // Ø­Ø³Ø§Ø¨ ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¨Ø¯Ø§ÙŠØ© Ø§Ù„Ø¯Ù‚ÙŠÙ‚ Ø¨ØµÙŠØºØ© YYYY-MM-DD Ù„Ø¥Ø¬Ø¨Ø§Ø± Ù…Ø­Ø±Ùƒ Ø§Ù„Ø£Ø®Ø¨Ø§Ø± Ø¹Ù„Ù‰ Ø¬Ù„Ø¨ Ø§Ù„Ø­Ø¯ÙŠØ« ÙÙ‚Ø·
     final DateTime cutoffDate =
         DateTime.now().subtract(Duration(days: maxDaysOld));
     final String afterDateStr =
@@ -349,42 +349,42 @@ class _NewsDashboardState extends State<NewsDashboard>
 
     final List> queries = [
       {
-        "q": "تيسمسيلت تربية OR مديرية التربية تيسمسيلت after:$afterDateStr",
+        "q": "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª ØªØ±Ø¨ÙŠØ© OR Ù…Ø¯ÙŠØ±ÙŠØ© Ø§Ù„ØªØ±Ø¨ÙŠØ© ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª after:$afterDateStr",
         "type": "press",
         "forceLocal": true
       },
       {
-        "q": "ولاية تيسمسيلت مدارس OR ثانوية OR متوسطة OR ابتدائية after:$afterDateStr",
+        "q": "ÙˆÙ„Ø§ÙŠØ© ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª Ù…Ø¯Ø§Ø±Ø³ OR Ø«Ø§Ù†ÙˆÙŠØ© OR Ù…ØªÙˆØ³Ø·Ø© OR Ø§Ø¨ØªØ¯Ø§Ø¦ÙŠØ© after:$afterDateStr",
         "type": "press",
         "forceLocal": true
       },
       {
-        "q": "تيسمسيلت (ثنية الحد OR برج بونعامة OR خميستي OR لرجام OR عماري) after:$afterDateStr",
+        "q": "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª (Ø«Ù†ÙŠØ© Ø§Ù„Ø­Ø¯ OR Ø¨Ø±Ø¬ Ø¨ÙˆÙ†Ø¹Ø§Ù…Ø© OR Ø®Ù…ÙŠØ³ØªÙŠ OR Ù„Ø±Ø¬Ø§Ù… OR Ø¹Ù…Ø§Ø±ÙŠ) after:$afterDateStr",
         "type": "press",
         "forceLocal": true
       },
       {
-        "q": "وزارة التربية الوطنية الجزائر after:$afterDateStr",
+        "q": "ÙˆØ²Ø§Ø±Ø© Ø§Ù„ØªØ±Ø¨ÙŠØ© Ø§Ù„ÙˆØ·Ù†ÙŠØ© Ø§Ù„Ø¬Ø²Ø§Ø¦Ø± after:$afterDateStr",
         "type": "press",
         "forceLocal": false
       },
       {
-        "q": "وزير التربية الجزائر OR الدخول المدرسي OR البكالوريا OR البيام after:$afterDateStr",
+        "q": "ÙˆØ²ÙŠØ± Ø§Ù„ØªØ±Ø¨ÙŠØ© Ø§Ù„Ø¬Ø²Ø§Ø¦Ø± OR Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø§Ù„Ù…Ø¯Ø±Ø³ÙŠ OR Ø§Ù„Ø¨ÙƒØ§Ù„ÙˆØ±ÙŠØ§ OR Ø§Ù„Ø¨ÙŠØ§Ù… after:$afterDateStr",
         "type": "press",
         "forceLocal": false
       },
       {
-        "q": "مسابقة الأساتذة OR توظيف التربية الجزائر OR مدير متوسطة after:$afterDateStr",
+        "q": "Ù…Ø³Ø§Ø¨Ù‚Ø© Ø§Ù„Ø£Ø³Ø§ØªØ°Ø© OR ØªÙˆØ¸ÙŠÙ Ø§Ù„ØªØ±Ø¨ÙŠØ© Ø§Ù„Ø¬Ø²Ø§Ø¦Ø± OR Ù…Ø¯ÙŠØ± Ù…ØªÙˆØ³Ø·Ø© after:$afterDateStr",
         "type": "press",
         "forceLocal": false
       },
       {
-        "q": "(فيديو OR تقرير OR تغطية) قطاع التربية الجزائر OR مدارس تيسمسيلت after:$afterDateStr",
+        "q": "(ÙÙŠØ¯ÙŠÙˆ OR ØªÙ‚Ø±ÙŠØ± OR ØªØºØ·ÙŠØ©) Ù‚Ø·Ø§Ø¹ Ø§Ù„ØªØ±Ø¨ÙŠØ© Ø§Ù„Ø¬Ø²Ø§Ø¦Ø± OR Ù…Ø¯Ø§Ø±Ø³ ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª after:$afterDateStr",
         "type": "tv",
         "forceLocal": false
       },
       {
-        "q": "(قناة النهار OR الشروق نيوز OR قناة البلاد OR التلفزيون الجزائري) التربية after:$afterDateStr",
+        "q": "(Ù‚Ù†Ø§Ø© Ø§Ù„Ù†Ù‡Ø§Ø± OR Ø§Ù„Ø´Ø±ÙˆÙ‚ Ù†ÙŠÙˆØ² OR Ù‚Ù†Ø§Ø© Ø§Ù„Ø¨Ù„Ø§Ø¯ OR Ø§Ù„ØªÙ„ÙØ²ÙŠÙˆÙ† Ø§Ù„Ø¬Ø²Ø§Ø¦Ø±ÙŠ) Ø§Ù„ØªØ±Ø¨ÙŠØ© after:$afterDateStr",
         "type": "tv",
         "forceLocal": false
       },
@@ -438,11 +438,11 @@ class _NewsDashboardState extends State<NewsDashboard>
             }
             if (extractedSource.isEmpty) {
               extractedSource =
-                  qType == "tv" ? "تقرير تلفزيوني" : "الصحافة الوطنية";
+                  qType == "tv" ? "ØªÙ‚Ø±ÙŠØ± ØªÙ„ÙØ²ÙŠÙˆÙ†ÙŠ" : "Ø§Ù„ØµØ­Ø§ÙØ© Ø§Ù„ÙˆØ·Ù†ÙŠØ©";
             }
 
             final Map<String, dynamic> timeInfo = _parseRealTime(rawDate);
-            // استبعاد صارم لأي خبر أقدم من النطاق المحدد
+            // Ø§Ø³ØªØ¨Ø¹Ø§Ø¯ ØµØ§Ø±Ù… Ù„Ø£ÙŠ Ø®Ø¨Ø± Ø£Ù‚Ø¯Ù… Ù…Ù† Ø§Ù„Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ø­Ø¯Ø¯
             if ((timeInfo["daysOld"] as int) > maxDaysOld) continue;
 
             bool exists = newsList.any((n) => n['title'].toString() == rawTitle);
@@ -451,8 +451,8 @@ class _NewsDashboardState extends State<NewsDashboard>
                   tissemsiltKeywords.any(
                       (k) => rawTitle.contains(k) || rawDesc.contains(k));
               String category = isTissemsilt
-                  ? "تيسمسيلت"
-                  : (qType == "tv" ? "تقارير متلفزة" : "وطني");
+                  ? "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª"
+                  : (qType == "tv" ? "ØªÙ‚Ø§Ø±ÙŠØ± Ù…ØªÙ„ÙØ²Ø©" : "ÙˆØ·Ù†ÙŠ");
 
               newsList.add({
                 "title": rawTitle,
@@ -472,7 +472,7 @@ class _NewsDashboardState extends State<NewsDashboard>
       } catch (_) {}
     }
 
-    // إزالة أي أخبار قديمة مخزنة سابقاً تتجاوز النطاق المحدد (ما عدا منشورات الإدارة السحابية)
+    // Ø¥Ø²Ø§Ù„Ø© Ø£ÙŠ Ø£Ø®Ø¨Ø§Ø± Ù‚Ø¯ÙŠÙ…Ø© Ù…Ø®Ø²Ù†Ø© Ø³Ø§Ø¨Ù‚Ø§Ù‹ ØªØªØ¬Ø§ÙˆØ² Ø§Ù„Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ø­Ø¯Ø¯ (Ù…Ø§ Ø¹Ø¯Ø§ Ù…Ù†Ø´ÙˆØ±Ø§Øª Ø§Ù„Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ø³Ø­Ø§Ø¨ÙŠØ©)
     newsList.removeWhere((item) {
       if (item['cloudId'] != null) return false;
       final int ts = (item['timestamp'] ?? 0) as int;
@@ -482,7 +482,7 @@ class _NewsDashboardState extends State<NewsDashboard>
       return ageDays > maxDaysOld;
     });
 
-    // ترتيب صارم من الأحدث إلى الأقدم
+    // ØªØ±ØªÙŠØ¨ ØµØ§Ø±Ù… Ù…Ù† Ø§Ù„Ø£Ø­Ø¯Ø« Ø¥Ù„Ù‰ Ø§Ù„Ø£Ù‚Ø¯Ù…
     newsList.sort((a, b) {
       int timeA = (a['timestamp'] ?? 0) as int;
       int timeB = (b['timestamp'] ?? 0) as int;
@@ -496,7 +496,7 @@ class _NewsDashboardState extends State<NewsDashboard>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'اكتمل الرصد: تم سحب $addedCount خبر وتقرير حديث بالتوقيت الحقيقي.'),
+              'Ø§ÙƒØªÙ…Ù„ Ø§Ù„Ø±ØµØ¯: ØªÙ… Ø³Ø­Ø¨ $addedCount Ø®Ø¨Ø± ÙˆØªÙ‚Ø±ÙŠØ± Ø­Ø¯ÙŠØ« Ø¨Ø§Ù„ØªÙˆÙ‚ÙŠØª Ø§Ù„Ø­Ù‚ÙŠÙ‚ÙŠ.'),
           backgroundColor: Colors.green.shade700,
         ),
       );
@@ -530,7 +530,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "بطاقة الملخص الإعلامي - ${(item["source"] ?? "").toString()}",
+                      "Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ù…Ù„Ø®Øµ Ø§Ù„Ø¥Ø¹Ù„Ø§Ù…ÙŠ - ${(item["source"] ?? "").toString()}",
                       style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
@@ -558,7 +558,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                         size: 15, color: Colors.deepOrange),
                     const SizedBox(width: 6),
                     Text(
-                      "التوقيت الحقيقي للنشر: ${(item["time"] ?? "").toString()}",
+                      "Ø§Ù„ØªÙˆÙ‚ÙŠØª Ø§Ù„Ø­Ù‚ÙŠÙ‚ÙŠ Ù„Ù„Ù†Ø´Ø±: ${(item["time"] ?? "").toString()}",
                       style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -587,8 +587,8 @@ class _NewsDashboardState extends State<NewsDashboard>
                   children: [
                     Text(
                       isTv
-                          ? "ملخص التقرير المتلفز / الفيديو:"
-                          : "الخلاصة المركزة للخبر:",
+                          ? "Ù…Ù„Ø®Øµ Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ù…ØªÙ„ÙØ² / Ø§Ù„ÙÙŠØ¯ÙŠÙˆ:"
+                          : "Ø§Ù„Ø®Ù„Ø§ØµØ© Ø§Ù„Ù…Ø±ÙƒØ²Ø© Ù„Ù„Ø®Ø¨Ø±:",
                       style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
@@ -621,8 +621,8 @@ class _NewsDashboardState extends State<NewsDashboard>
                       icon: Icon(
                           isTv ? Icons.play_circle_fill : Icons.open_in_new),
                       label: Text(isTv
-                          ? "مشاهدة الفيديو الكامل من المصدر"
-                          : "قراءة المقال الكامل من المصدر"),
+                          ? "Ù…Ø´Ø§Ù‡Ø¯Ø© Ø§Ù„ÙÙŠØ¯ÙŠÙˆ Ø§Ù„ÙƒØ§Ù…Ù„ Ù…Ù† Ø§Ù„Ù…ØµØ¯Ø±"
+                          : "Ù‚Ø±Ø§Ø¡Ø© Ø§Ù„Ù…Ù‚Ø§Ù„ Ø§Ù„ÙƒØ§Ù…Ù„ Ù…Ù† Ø§Ù„Ù…ØµØ¯Ø±"),
                     ),
                   ),
                 ],
@@ -637,7 +637,7 @@ class _NewsDashboardState extends State<NewsDashboard>
   void _showAddFacebookModal({
     String prefillUrl = "",
     String prefillTitle = "",
-    String defaultCategory = "تيسمسيلت",
+    String defaultCategory = "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª",
   }) {
     final linkController = TextEditingController(text: prefillUrl);
     final titleController = TextEditingController(text: prefillTitle);
@@ -671,7 +671,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
-                          "نشر خبر أو فيديو للجميع (فيسبوك / يوتيوب)",
+                          "Ù†Ø´Ø± Ø®Ø¨Ø± Ø£Ùˆ ÙÙŠØ¯ÙŠÙˆ Ù„Ù„Ø¬Ù…ÙŠØ¹ (ÙÙŠØ³Ø¨ÙˆÙƒ / ÙŠÙˆØªÙŠÙˆØ¨)",
                           style: TextStyle(
                               fontSize: 15, fontWeight: FontWeight.bold),
                         ),
@@ -686,7 +686,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                   TextField(
                     controller: linkController,
                     decoration: InputDecoration(
-                      labelText: "رابط المنشور أو الفيديو",
+                      labelText: "Ø±Ø§Ø¨Ø· Ø§Ù„Ù…Ù†Ø´ÙˆØ± Ø£Ùˆ Ø§Ù„ÙÙŠØ¯ÙŠÙˆ",
                       prefixIcon: const Icon(Icons.link),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
@@ -696,7 +696,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                   TextField(
                     controller: titleController,
                     decoration: InputDecoration(
-                      labelText: "عنوان الخبر البارز",
+                      labelText: "Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ø®Ø¨Ø± Ø§Ù„Ø¨Ø§Ø±Ø²",
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                     ),
@@ -706,7 +706,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                     controller: summaryController,
                     maxLines: 2,
                     decoration: InputDecoration(
-                      labelText: "ملخص الخبر (اختياري - يظهر للمطالعين)",
+                      labelText: "Ù…Ù„Ø®Øµ Ø§Ù„Ø®Ø¨Ø± (Ø§Ø®ØªÙŠØ§Ø±ÙŠ - ÙŠØ¸Ù‡Ø± Ù„Ù„Ù…Ø·Ø§Ù„Ø¹ÙŠÙ†)",
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                     ),
@@ -715,20 +715,20 @@ class _NewsDashboardState extends State<NewsDashboard>
                   DropdownButtonFormField<String>(
                     value: selectedCategory,
                     decoration: InputDecoration(
-                      labelText: "تصنيف الخبر",
+                      labelText: "ØªØµÙ†ÙŠÙ Ø§Ù„Ø®Ø¨Ø±",
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                     ),
                     items: const [
                       DropdownMenuItem(
-                          value: "تيسمسيلت",
-                          child: Text("أخبار تيسمسيلت (أولوية قصوى)")),
+                          value: "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª",
+                          child: Text("Ø£Ø®Ø¨Ø§Ø± ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª (Ø£ÙˆÙ„ÙˆÙŠØ© Ù‚ØµÙˆÙ‰)")),
                       DropdownMenuItem(
-                          value: "وطني",
-                          child: Text("أخبار وطنية - وزارة التربية")),
+                          value: "ÙˆØ·Ù†ÙŠ",
+                          child: Text("Ø£Ø®Ø¨Ø§Ø± ÙˆØ·Ù†ÙŠØ© - ÙˆØ²Ø§Ø±Ø© Ø§Ù„ØªØ±Ø¨ÙŠØ©")),
                       DropdownMenuItem(
-                          value: "تقارير متلفزة",
-                          child: Text("فيديو / تقرير يوتيوب أو تلفزيون")),
+                          value: "ØªÙ‚Ø§Ø±ÙŠØ± Ù…ØªÙ„ÙØ²Ø©",
+                          child: Text("ÙÙŠØ¯ÙŠÙˆ / ØªÙ‚Ø±ÙŠØ± ÙŠÙˆØªÙŠÙˆØ¨ Ø£Ùˆ ØªÙ„ÙØ²ÙŠÙˆÙ†")),
                     ],
                     onChanged: (val) {
                       if (val != null) {
@@ -746,7 +746,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                         foregroundColor: Colors.white,
                       ),
                       icon: const Icon(Icons.send),
-                      label: const Text("نشر للجميع الآن",
+                      label: const Text("Ù†Ø´Ø± Ù„Ù„Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø¢Ù†",
                           style: TextStyle(
                               fontSize: 15, fontWeight: FontWeight.bold)),
                       onPressed: () async {
@@ -765,8 +765,8 @@ class _NewsDashboardState extends State<NewsDashboard>
                         final String finalTitle =
                             titleController.text.trim().isEmpty
                                 ? (isYt
-                                    ? "فيديو تربوي مرصود عبر يوتيوب"
-                                    : "منشور تربوي مرصود عبر فيسبوك")
+                                    ? "ÙÙŠØ¯ÙŠÙˆ ØªØ±Ø¨ÙˆÙŠ Ù…Ø±ØµÙˆØ¯ Ø¹Ø¨Ø± ÙŠÙˆØªÙŠÙˆØ¨"
+                                    : "Ù…Ù†Ø´ÙˆØ± ØªØ±Ø¨ÙˆÙŠ Ù…Ø±ØµÙˆØ¯ Ø¹Ø¨Ø± ÙÙŠØ³Ø¨ÙˆÙƒ")
                                 : titleController.text.trim();
 
                         final String finalSummary =
@@ -775,9 +775,9 @@ class _NewsDashboardState extends State<NewsDashboard>
                                 : summaryController.text.trim();
 
                         final String sourceName =
-                            isYt ? "رصد يوتيوب مباشر" : "رصد فيسبوك مباشر";
+                            isYt ? "Ø±ØµØ¯ ÙŠÙˆØªÙŠÙˆØ¨ Ù…Ø¨Ø§Ø´Ø±" : "Ø±ØµØ¯ ÙÙŠØ³Ø¨ÙˆÙƒ Ù…Ø¨Ø§Ø´Ø±";
                         final String itemType =
-                            (selectedCategory == "تقارير متلفزة" || isYt)
+                            (selectedCategory == "ØªÙ‚Ø§Ø±ÙŠØ± Ù…ØªÙ„ÙØ²Ø©" || isYt)
                                 ? "tv"
                                 : "facebook";
 
@@ -790,7 +790,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                           "time": nowInfo["display"],
                           "timestamp": nowTs,
                           "url": finalUrl,
-                          "important": selectedCategory == "تيسمسيلت",
+                          "important": selectedCategory == "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª",
                         };
 
                         setState(() {
@@ -828,9 +828,9 @@ class _NewsDashboardState extends State<NewsDashboard>
   Widget build(BuildContext context) {
     final List> filteredNews = newsList.where((item) {
       bool matchesTab = true;
-      if (selectedTab == "فيسبوك") {
+      if (selectedTab == "ÙÙŠØ³Ø¨ÙˆÙƒ") {
         matchesTab = item["type"] == "facebook" || item["cloudId"] != null;
-      } else if (selectedTab != "الكل") {
+      } else if (selectedTab != "Ø§Ù„ÙƒÙ„") {
         matchesTab = item["category"] == selectedTab;
       }
 
@@ -847,17 +847,17 @@ class _NewsDashboardState extends State<NewsDashboard>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("راصد التربية - ولاية تيسمسيلت",
+            const Text("Ø±Ø§ØµØ¯ Ø§Ù„ØªØ±Ø¨ÙŠØ© - ÙˆÙ„Ø§ÙŠØ© ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª",
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
             Text(
-              "إجمالي الأخبار المرصودة: ${newsList.length} خبر حديث",
+              "Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø£Ø®Ø¨Ø§Ø± Ø§Ù„Ù…Ø±ØµÙˆØ¯Ø©: ${newsList.length} Ø®Ø¨Ø± Ø­Ø¯ÙŠØ«",
               style: const TextStyle(fontSize: 11, color: Colors.amberAccent),
             ),
           ],
         ),
         actions: [
           PopupMenuButton<int>(
-            tooltip: "تحديد حداثة الأخبار",
+            tooltip: "ØªØ­Ø¯ÙŠØ¯ Ø­Ø¯Ø§Ø«Ø© Ø§Ù„Ø£Ø®Ø¨Ø§Ø±",
             icon: const Icon(Icons.history_toggle_off, color: Colors.white),
             onSelected: (days) {
               setState(() {
@@ -868,15 +868,15 @@ class _NewsDashboardState extends State<NewsDashboard>
             },
             itemBuilder: (ctx) => [
               const PopupMenuItem(
-                  value: 1, child: Text("أخبار آخر 24 ساعة فقط (عاجل)")),
-              const PopupMenuItem(value: 3, child: Text("أخبار آخر 3 أيام")),
+                  value: 1, child: Text("Ø£Ø®Ø¨Ø§Ø± Ø¢Ø®Ø± 24 Ø³Ø§Ø¹Ø© ÙÙ‚Ø· (Ø¹Ø§Ø¬Ù„)")),
+              const PopupMenuItem(value: 3, child: Text("Ø£Ø®Ø¨Ø§Ø± Ø¢Ø®Ø± 3 Ø£ÙŠØ§Ù…")),
               const PopupMenuItem(
-                  value: 7, child: Text("أخبار هذا الأسبوع (7 أيام)")),
+                  value: 7, child: Text("Ø£Ø®Ø¨Ø§Ø± Ù‡Ø°Ø§ Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹ (7 Ø£ÙŠØ§Ù…)")),
             ],
           ),
           IconButton(
             onPressed: isScanning ? null : runSmartRadarBot,
-            tooltip: "تحديث وسحب الأخبار الجديدة الآن",
+            tooltip: "ØªØ­Ø¯ÙŠØ« ÙˆØ³Ø­Ø¨ Ø§Ù„Ø£Ø®Ø¨Ø§Ø± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© Ø§Ù„Ø¢Ù†",
             icon: isScanning
                 ? const SizedBox(
                     width: 20,
@@ -898,7 +898,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                   onChanged: (val) => setState(() => searchQuery = val),
                   decoration: InputDecoration(
                     hintText:
-                        "ابحث في العناوين والملخصات (تيسمسيلت، امتحان، بلدية...)",
+                        "Ø§Ø¨Ø­Ø« ÙÙŠ Ø§Ù„Ø¹Ù†Ø§ÙˆÙŠÙ† ÙˆØ§Ù„Ù…Ù„Ø®ØµØ§Øª (ØªÙŠØ³Ù…Ø³ÙŠÙ„ØªØŒ Ø§Ù…ØªØ­Ø§Ù†ØŒ Ø¨Ù„Ø¯ÙŠØ©...)",
                     prefixIcon:
                         const Icon(Icons.search, color: Color(0xFF1A237E)),
                     filled: true,
@@ -923,11 +923,11 @@ class _NewsDashboardState extends State<NewsDashboard>
                   indicatorColor: const Color(0xFFD97706),
                   indicatorWeight: 3,
                   tabs: const [
-                    Tab(text: "الكل"),
-                    Tab(text: "تيسمسيلت"),
-                    Tab(text: "وطني"),
-                    Tab(text: "تقارير متلفزة"),
-                    Tab(text: "فيسبوك"),
+                    Tab(text: "Ø§Ù„ÙƒÙ„"),
+                    Tab(text: "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª"),
+                    Tab(text: "ÙˆØ·Ù†ÙŠ"),
+                    Tab(text: "ØªÙ‚Ø§Ø±ÙŠØ± Ù…ØªÙ„ÙØ²Ø©"),
+                    Tab(text: "ÙÙŠØ³Ø¨ÙˆÙƒ"),
                   ],
                 ),
               ),
@@ -943,7 +943,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                   CircularProgressIndicator(),
                   SizedBox(height: 14),
                   Text(
-                      "جاري سحب وتلخيص أحدث الأخبار والتقارير بالتوقيت الحقيقي..."),
+                      "Ø¬Ø§Ø±ÙŠ Ø³Ø­Ø¨ ÙˆØªÙ„Ø®ÙŠØµ Ø£Ø­Ø¯Ø« Ø§Ù„Ø£Ø®Ø¨Ø§Ø± ÙˆØ§Ù„ØªÙ‚Ø§Ø±ÙŠØ± Ø¨Ø§Ù„ØªÙˆÙ‚ÙŠØª Ø§Ù„Ø­Ù‚ÙŠÙ‚ÙŠ..."),
                 ],
               ),
             )
@@ -1010,7 +1010,7 @@ class _NewsDashboardState extends State<NewsDashboard>
                                       borderRadius: BorderRadius.circular(5),
                                     ),
                                     child: Text(
-                                      "تيسمسيلت",
+                                      "ØªÙŠØ³Ù…Ø³ÙŠÙ„Øª",
                                       style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
@@ -1073,14 +1073,14 @@ class _NewsDashboardState extends State<NewsDashboard>
                                           : Icons.menu_book,
                                       size: 16),
                                   label: Text(type == "tv"
-                                      ? "ملخص التقرير والفيديو"
-                                      : "قراءة الملخص"),
+                                      ? "Ù…Ù„Ø®Øµ Ø§Ù„ØªÙ‚Ø±ÙŠØ± ÙˆØ§Ù„ÙÙŠØ¯ÙŠÙˆ"
+                                      : "Ù‚Ø±Ø§Ø¡Ø© Ø§Ù„Ù…Ù„Ø®Øµ"),
                                 ),
                                 TextButton.icon(
                                   onPressed: () => _openNewsLink(
                                       (item["url"] ?? "").toString()),
                                   icon: const Icon(Icons.open_in_new, size: 15),
-                                  label: const Text("المصدر"),
+                                  label: const Text("Ø§Ù„Ù…ØµØ¯Ø±"),
                                 ),
                                 const Spacer(),
                                 IconButton(
@@ -1115,7 +1115,7 @@ class _NewsDashboardState extends State<NewsDashboard>
         foregroundColor: Colors.white,
         onPressed: () => _showAddFacebookModal(),
         icon: const Icon(Icons.add_link),
-        label: const Text("إضافة من فيسبوك",
+        label: const Text("Ø¥Ø¶Ø§ÙØ© Ù…Ù† ÙÙŠØ³Ø¨ÙˆÙƒ",
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
