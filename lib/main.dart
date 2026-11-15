@@ -148,7 +148,7 @@ class _NewsDashboardState extends State
   Future _loadSavedNews() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? savedData = prefs.getString('rabah_edu_news_v1');
+      final String? savedData = prefs.getString('rabah_edu_news_v2');
       if (savedData != null && savedData.isNotEmpty) {
         final decoded = json.decode(savedData) as List;
         if (decoded.isNotEmpty) {
@@ -168,7 +168,7 @@ class _NewsDashboardState extends State
   Future _saveNewsToStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('rabah_edu_news_v1', json.encode(newsList));
+      await prefs.setString('rabah_edu_news_v2', json.encode(newsList));
     } catch (_) {}
   }
 
@@ -309,20 +309,32 @@ class _NewsDashboardState extends State
     };
   }
 
-  String _cleanSummaryText(String rawHtml, String fallbackTitle) {
+  // استخراج وتنسيق ملخص غني ومفهوم من متن الخبر القادم من المصدر
+  String _cleanSummaryText(String rawHtml, String fallbackTitle, String sourceName) {
     String text = rawHtml
         .replaceAll(RegExp(r'<[^>]*>'), ' ')
         .replaceAll('&nbsp;', ' ')
         .replaceAll('&quot;', '"')
         .replaceAll('&amp;', '&')
         .replaceAll('&#39;', "'")
+        .replaceAll('&laquo;', '«')
+        .replaceAll('&raquo;', '»')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
 
-    if (text.length < 25 || text == fallbackTitle) {
-      return "موجز الخبر: $fallbackTitle. (اضغط لقراءة التفاصيل الكاملة أو فتح المصدر).";
+    // إزالة تكرار العنوان واسم المصدر من بداية الملخص إن وجدا
+    if (text.startsWith(fallbackTitle)) {
+      text = text.substring(fallbackTitle.length).trim();
     }
-    return text.length > 260 ? "${text.substring(0, 260)}..." : text;
+    if (text.endsWith(sourceName)) {
+      text = text.substring(0, text.length - sourceName.length).trim();
+    }
+    text = text.replaceAll(RegExp(r'^[-–—:\s]+'), '').trim();
+
+    if (text.length < 25) {
+      return "تغطية إخبارية حول: $fallbackTitle — وردت عبر ($sourceName) ضمن متابعة مستجدات قطاع التربية والتعليم. اضغط لفتح المقال الكامل.";
+    }
+    return text.length > 380 ? "${text.substring(0, 380)}..." : text;
   }
 
   String _extractTagContent(String xml, String tag) {
@@ -348,7 +360,6 @@ class _NewsDashboardState extends State
         .trim();
   }
 
-  // دالة جلب قناة واحدة بسرعة عالية لاستخدامها بالتوازي
   Future<List> _fetchSingleChannel(Map queryObj) async {
     final String qText = queryObj["q"].toString();
     final String qType = queryObj["type"].toString();
@@ -412,7 +423,7 @@ class _NewsDashboardState extends State
 
             results.add({
               "title": cleanTitle,
-              "summary": _cleanSummaryText(rawDesc, cleanTitle),
+              "summary": _cleanSummaryText(rawDesc, cleanTitle, extractedSource),
               "source": extractedSource,
               "category": category,
               "type": isVideoItem ? "tv" : "press",
@@ -466,7 +477,7 @@ class _NewsDashboardState extends State
 
             results.add({
               "title": rawTitle,
-              "summary": _cleanSummaryText(rawDesc, rawTitle),
+              "summary": _cleanSummaryText(rawDesc, rawTitle, source),
               "source": source,
               "category": isTissemsilt
                   ? "تيسمسيلت"
@@ -485,7 +496,7 @@ class _NewsDashboardState extends State
     return results;
   }
 
-  // محرك الجلب المتوازي الفائق السرعة (12 قناة شاملة في آن واحد)
+  // محرك الجلب المتوازي الموسع (16 قناة تغطي كل مصطلحات التربية والتعليم في الجزائر)
   Future runFastParallelEngine() async {
     if (isScanning) return;
     setState(() => isScanning = true);
@@ -500,21 +511,30 @@ class _NewsDashboardState extends State
       {"q": "ولاية تيسمسيلت مدارس OR ثانوية OR متوسطة OR ابتدائية $timeFilter", "type": "press", "forceLocal": true},
       {"q": "تيسمسيلت (ثنية الحد OR برج بونعامة OR خميستي OR لرجام OR عماري) $timeFilter", "type": "press", "forceLocal": true},
 
-      // 2. الصحافة المكتوبة الشاملة لكل ما يقال عن التربية والتعليم في الجزائر
-      {"q": "وزارة التربية الوطنية الجزائر $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "قطاع التربية والتعليم في الجزائر OR المنظومة التربوية الجزائر $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "مديرية التربية الجزائر OR مديريات التربية $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "البكالوريا OR شهادة التعليم المتوسط OR الدخول المدرسي الجزائر $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "الأساتذة OR نقابات التربية OR توظيف التربية الجزائر $timeFilter", "type": "press", "forceLocal": false},
+      // 2. الوزارة والمديريات الولائية والقرارات الرسمية
+      {"q": "وزارة التربية الوطنية الجزائر OR وزير التربية $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "مديرية التربية الجزائر OR مديريات التربية الولائية $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "قطاع التربية والتعليم في الجزائر OR المنظومة التربوية $timeFilter", "type": "press", "forceLocal": false},
 
-      // 3. تقارير متلفزة وفيديوهات عن مديريات التربية والنشاطات التربوية
-      {"q": "(تقرير OR فيديو OR روبورتاج) مديرية التربية الجزائر $timeFilter", "type": "tv", "forceLocal": false},
-      {"q": "(قناة النهار OR الشروق نيوز OR قناة البلاد) مديرية التربية OR قطاع التربية $timeFilter", "type": "tv", "forceLocal": false},
-      {"q": "(التلفزيون الجزائري OR قناة الحياة OR الوطنية TV) التربية والتعليم $timeFilter", "type": "tv", "forceLocal": false},
-      {"q": "site:youtube.com مديرية التربية الجزائر OR وزارة التربية الوطنية $timeFilter", "type": "tv", "forceLocal": false},
+      // 3. الامتحانات الوطنية والتقييمات البيداغوجية
+      {"q": "البكالوريا الجزائر OR شهادة التعليم المتوسط OR البيام $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "تقييم المكتسبات OR الاختبارات الفصلية OR العطل المدرسية الجزائر $timeFilter", "type": "press", "forceLocal": false},
+
+      // 4. المسابقات المهنية، التوظيف، والرتب الإدارية والتربوية
+      {"q": "مسابقة الأساتذة OR توظيف التربية الجزائر OR الإدماج $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "مدير متوسطة OR مدير ثانوية OR مفتش التربية OR أستاذ مكون الجزائر $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "مشرف التربية OR مستشار التوجيه OR مقتصد الجزائر $timeFilter", "type": "press", "forceLocal": false},
+
+      // 5. الرقمنة، الخدمات الاجتماعية، والنقابات
+      {"q": "فضاء الأولياء OR الأرضية الرقمية وزارة التربية OR كشف النقاط $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "منحة التمدرس OR الكتاب المدرسي OR المطاعم المدرسية الجزائر $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "نقابات التربية الجزائر OR القانون الأساسي لعمال التربية $timeFilter", "type": "press", "forceLocal": false},
+
+      // 6. تقارير متلفزة وفيديوهات يوتيوب حول التربية ومديرياتها
+      {"q": "(تقرير OR فيديو OR روبورتاج) مديرية التربية الجزائر OR وزارة التربية $timeFilter", "type": "tv", "forceLocal": false},
+      {"q": "(قناة النهار OR الشروق نيوز OR قناة البلاد OR التلفزيون الجزائري) التربية $timeFilter", "type": "tv", "forceLocal": false},
     ];
 
-    // تشغيل جميع القنوات الـ 12 في نفس اللحظة لتسريع الجلب 10 أضعاف
     final List<List> allBatches =
         await Future.wait(queries.map((q) => _fetchSingleChannel(q as Map)));
 
@@ -552,7 +572,7 @@ class _NewsDashboardState extends State
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'تم التحديث الفوري: إضافة $addedCount خبر وتقرير جديد.'),
+              'تم التحديث الفوري: إضافة $addedCount خبر وتقرير تربوي جديد.'),
           backgroundColor: Colors.green.shade800,
           behavior: SnackBarBehavior.floating,
         ),
@@ -560,7 +580,6 @@ class _NewsDashboardState extends State
     }
   }
 
-  // بحث حي مباشر على الإنترنت لأي عنوان أو موضوع يكتبه المستخدم في خانة البحث
   Future _searchCustomTopicOnline(String topic) async {
     final cleanTopic = topic.trim();
     if (cleanTopic.isEmpty || isCustomSearching) return;
@@ -680,10 +699,21 @@ class _NewsDashboardState extends State
                 ),
               ),
               const SizedBox(height: 14),
+              const Text(
+                "عنوان الخبر:",
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey),
+              ),
+              const SizedBox(height: 4),
               Text(
                 (item["title"] ?? "").toString(),
                 style: const TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.bold, height: 1.4),
+                    fontSize: 17.5,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F2557),
+                    height: 1.4),
               ),
               const SizedBox(height: 14),
               Container(
@@ -694,10 +724,30 @@ class _NewsDashboardState extends State
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.indigo.shade100),
                 ),
-                child: Text(
-                  (item["summary"] ?? item["title"] ?? "").toString(),
-                  style: const TextStyle(
-                      fontSize: 14, height: 1.6, color: Colors.black87),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.notes,
+                            size: 16, color: Colors.amber.shade800),
+                        const SizedBox(width: 6),
+                        Text(
+                          isTv ? "ملخص التقرير / الفيديو:" : "ملخص الخبر:",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.amber.shade900),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      (item["summary"] ?? item["title"] ?? "").toString(),
+                      style: const TextStyle(
+                          fontSize: 14.5, height: 1.65, color: Colors.black87),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
@@ -721,7 +771,7 @@ class _NewsDashboardState extends State
                   label: Text(
                     isTv
                         ? "مشاهدة التقرير / الفيديو كاملاً"
-                        : "فتح المقال كاملاً من المصدر",
+                        : "قراءة المقال كاملاً من المصدر",
                     style: const TextStyle(
                         fontSize: 15, fontWeight: FontWeight.bold),
                   ),
@@ -805,9 +855,9 @@ class _NewsDashboardState extends State
                   const SizedBox(height: 10),
                   TextField(
                     controller: summaryController,
-                    maxLines: 2,
+                    maxLines: 3,
                     decoration: InputDecoration(
-                      labelText: "تفاصيل إضافية (اختياري)",
+                      labelText: "ملخص الخبر (يظهر للمطالعين داخل البطاقة)",
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
@@ -874,7 +924,7 @@ class _NewsDashboardState extends State
 
                         final String finalSummary =
                             summaryController.text.trim().isEmpty
-                                ? finalTitle
+                                ? "منشور تربوي مشارك عبر بوابة التطبيق — اضغط لفتح الرابط الأصلي ومتابعة التفاصيل."
                                 : summaryController.text.trim();
 
                         final String sourceName =
@@ -961,7 +1011,6 @@ class _NewsDashboardState extends State
           child: SafeArea(
             child: Column(
               children: [
-                // الشريط العلوي بعنوان التطبيق الشخصي
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -1034,7 +1083,6 @@ class _NewsDashboardState extends State
                   ),
                 ),
 
-                // مربع البحث المزدوج (فلترة + بحث حي على الإنترنت)
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -1056,7 +1104,7 @@ class _NewsDashboardState extends State
                       onChanged: (val) => setState(() => searchQuery = val),
                       onSubmitted: (val) => _searchCustomTopicOnline(val),
                       decoration: InputDecoration(
-                        hintText: "اكتب عنواناً للبحث (مديرية، مسابقة، بكالوريا...)",
+                        hintText: "ابحث في العناوين (مسابقة، مدير، منحة، بكالوريا...)",
                         hintStyle: TextStyle(
                             fontSize: 12.5, color: Colors.grey.shade500),
                         prefixIcon: const Icon(Icons.search,
@@ -1111,7 +1159,6 @@ class _NewsDashboardState extends State
 
                 const Spacer(),
 
-                // شريط الأقسام العصري
                 TabBar(
                   controller: _tabController,
                   isScrollable: true,
@@ -1144,7 +1191,7 @@ class _NewsDashboardState extends State
                   CircularProgressIndicator(),
                   SizedBox(height: 14),
                   Text(
-                    "جاري جلب أحدث الأخبار والتقارير المتلفزة...",
+                    "جاري جلب أحدث الأخبار والتقارير التربوية...",
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -1277,7 +1324,7 @@ class _NewsDashboardState extends State
                                       ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                                 Row(
                                   children: [
                                     Icon(Icons.schedule,
@@ -1292,32 +1339,51 @@ class _NewsDashboardState extends State
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 10),
+                                // عنوان الخبر البارز
                                 Text(
                                   (item["title"] ?? "").toString(),
                                   style: const TextStyle(
-                                      fontSize: 15.5,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E293B),
+                                      color: Color(0xFF0F2557),
                                       height: 1.35),
                                 ),
                                 const SizedBox(height: 8),
+                                // صندوق ملخص الخبر الواضح
                                 Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF8FAFC),
                                     borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: Colors.blueGrey.shade50),
                                   ),
-                                  child: Text(
-                                    (item["summary"] ?? item["title"] ?? "")
-                                        .toString(),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontSize: 12.5,
-                                        color: Colors.grey.shade700,
-                                        height: 1.45),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "ملخص الخبر:",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.amber.shade900,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        (item["summary"] ?? item["title"] ?? "")
+                                            .toString(),
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontSize: 12.5,
+                                            color: Colors.grey.shade800,
+                                            height: 1.45),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -1334,7 +1400,7 @@ class _NewsDashboardState extends State
                                       label: Text(
                                         type == "tv"
                                             ? "ملخص الفيديو"
-                                            : "الموجز",
+                                            : "قراءة الملخص الكامل",
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold),
                                       ),
