@@ -22,17 +22,12 @@ class RabahEduNewsApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0F2557),
-          primary: const Color(0xFF0F2557),
+          seedColor: const Color(0xFF0A1931),
+          primary: const Color(0xFF0A1931),
           secondary: const Color(0xFFD97706),
-          surface: const Color(0xFFF4F6FB),
+          surface: const Color(0xFFF3F6FB),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF4F6FB),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0F2557),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
+        scaffoldBackgroundColor: const Color(0xFFF3F6FB),
       ),
       builder: (context, child) {
         return Directionality(
@@ -81,9 +76,9 @@ class _NewsDashboardState extends State
   final List tabs = [
     "الكل",
     "تيسمسيلت",
-    "الصحافة الوطنية",
-    "تقارير وفيديوهات",
-    "فيسبوك"
+    "المواقع والصحافة",
+    "القنوات واليوتيوب",
+    "فيسبوك والمشاركات"
   ];
 
   @override
@@ -121,6 +116,7 @@ class _NewsDashboardState extends State
     );
   }
 
+  // استخراج الرابط والنص عند المشاركة من فيسبوك أو يوتيوب أو المواقع الإلكترونية
   void _openQuickShareFromExternalApp(String rawSharedText) {
     if (rawSharedText.trim().isEmpty) return;
 
@@ -133,22 +129,81 @@ class _NewsDashboardState extends State
 
     final bool isYoutube = extractedUrl.contains("youtube.com") ||
         extractedUrl.contains("youtu.be");
+    final bool isFacebook = extractedUrl.contains("facebook.com") ||
+        extractedUrl.contains("fb.watch") ||
+        extractedUrl.contains("fb.com");
 
-    _showAddFacebookModal(
+    String defaultCat = "المواقع والصحافة";
+    if (isYoutube) {
+      defaultCat = "القنوات واليوتيوب";
+    } else if (isFacebook) {
+      defaultCat = "تيسمسيلت";
+    }
+
+    _showAddShareModal(
       prefillUrl: extractedUrl,
-      prefillTitle: extractedTitle.isNotEmpty
-          ? extractedTitle
-          : (isYoutube
-              ? "فيديو تربوي عبر يوتيوب"
-              : "منشور تربوي عبر فيسبوك"),
-      defaultCategory: isYoutube ? "تقارير وفيديوهات" : "تيسمسيلت",
+      prefillTitle: extractedTitle,
+      defaultCategory: defaultCat,
     );
+  }
+
+  // جلب عنوان الخبر الحقيقي تلقائياً من رابط يوتيوب أو فيسبوك أو موقع إلكتروني
+  Future> _autoFetchLinkMetadata(String url) async {
+    String detectedTitle = "";
+    String detectedAuthor = "";
+
+    try {
+      // 1. محاولة الجلب السريع عبر NoEmbed (يدعم يوتيوب وفيسبوك والمواقع العالمية)
+      final noembedUri = Uri.parse(
+          'https://noembed.com/embed?url=${Uri.encodeComponent(url)}');
+      final res =
+          await http.get(noembedUri).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = json.decode(utf8.decode(res.bodyBytes));
+        if (data is Map) {
+          detectedTitle = (data['title'] ?? '').toString().trim();
+          detectedAuthor = (data['author_name'] ?? '').toString().trim();
+        }
+      }
+    } catch (_) {}
+
+    // 2. إذا كان موقعاً إلكترونياً إخبارياً، نستخرج وسم <title> أو og:title من صفحة الويب
+    if (detectedTitle.isEmpty) {
+      try {
+        final proxyUri = Uri.parse(
+            'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}');
+        final res =
+            await http.get(proxyUri).timeout(const Duration(seconds: 6));
+        if (res.statusCode == 200) {
+          final html = utf8.decode(res.bodyBytes, allowMalformed: true);
+          final ogMatch = RegExp(
+                  r'property=["\x27]og:title["\x27]\s+content=["\x27]([^"\x27]+)["\x27]',
+                  caseSensitive: false)
+              .firstMatch(html);
+          if (ogMatch != null) {
+            detectedTitle = ogMatch.group(1)!.trim();
+          } else {
+            final titleMatch = RegExp(r'<title[^>]*>([^<]+)<\/title>',
+                    caseSensitive: false)
+                .firstMatch(html);
+            if (titleMatch != null) {
+              detectedTitle = titleMatch.group(1)!.trim();
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    return {
+      "title": _stripHtmlCompletly(detectedTitle),
+      "author": detectedAuthor,
+    };
   }
 
   Future _loadSavedNews() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? savedData = prefs.getString('rabah_edu_news_v2');
+      final String? savedData = prefs.getString('rabah_edu_news_v4');
       if (savedData != null && savedData.isNotEmpty) {
         final decoded = json.decode(savedData) as List;
         if (decoded.isNotEmpty) {
@@ -168,7 +223,7 @@ class _NewsDashboardState extends State
   Future _saveNewsToStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('rabah_edu_news_v2', json.encode(newsList));
+      await prefs.setString('rabah_edu_news_v4', json.encode(newsList));
     } catch (_) {}
   }
 
@@ -182,7 +237,7 @@ class _NewsDashboardState extends State
         if (decoded != null && decoded is Map) {
           decoded.forEach((key, value) {
             if (value is Map) {
-              final String title = (value["title"] ?? "").toString();
+              final String title = _stripHtmlCompletly((value["title"] ?? "").toString());
               final String url = (value["url"] ?? "").toString();
               if (title.isEmpty) return;
 
@@ -198,8 +253,12 @@ class _NewsDashboardState extends State
               final postMap = {
                 "cloudId": key,
                 "title": title,
-                "summary": (value["summary"] ?? title).toString(),
-                "source": (value["source"] ?? "إدارة التطبيق").toString(),
+                "summary": _cleanSummaryText(
+                  (value["summary"] ?? "").toString(),
+                  title,
+                  (value["source"] ?? "متابعة خاصة").toString(),
+                ),
+                "source": (value["source"] ?? "متابعة خاصة").toString(),
                 "category": (value["category"] ?? "تيسمسيلت").toString(),
                 "type": (value["type"] ?? "facebook").toString(),
                 "time": timeInfo["display"],
@@ -239,8 +298,9 @@ class _NewsDashboardState extends State
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text("تم النشر بنجاح! يظهر الآن لدى جميع مستخدمي تطبيق Rabah."),
+              content: const Text("تم النشر بنجاح! يظهر الخبر وعنوانه الآن لدى جميع المستخدمين."),
               backgroundColor: Colors.green.shade800,
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -249,7 +309,7 @@ class _NewsDashboardState extends State
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("تم الحفظ محلياً (تعذر الوصول للسحابة، تحقق من الإنترنت)."),
+            content: Text("تم الحفظ في جهازك (تحقق من الاتصال لنشره سحابياً)."),
             backgroundColor: Colors.orange,
           ),
         );
@@ -309,32 +369,45 @@ class _NewsDashboardState extends State
     };
   }
 
-  // استخراج وتنسيق ملخص غني ومفهوم من متن الخبر القادم من المصدر
-  String _cleanSummaryText(String rawHtml, String fallbackTitle, String sourceName) {
-    String text = rawHtml
-        .replaceAll(RegExp(r'<[^>]*>'), ' ')
-        .replaceAll('&nbsp;', ' ')
-        .replaceAll('&quot;', '"')
+  // تنظيف جذري لأي أكواد HTML مشفرة مرتين مثل &lt;a href=...&gt; والروابط الطويلة
+  String _stripHtmlCompletly(String input) {
+    String s = input
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
         .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"')
         .replaceAll('&#39;', "'")
+        .replaceAll('&nbsp;', ' ')
         .replaceAll('&laquo;', '«')
-        .replaceAll('&raquo;', '»')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+        .replaceAll('&raquo;', '»');
 
-    // إزالة تكرار العنوان واسم المصدر من بداية الملخص إن وجدا
-    if (text.startsWith(fallbackTitle)) {
-      text = text.substring(fallbackTitle.length).trim();
+    // مسح جميع وسوم HTML بعد فك التشفير
+    s = s.replaceAll(RegExp(r'<[^>]*>'), ' ');
+    // مسح أي بقايا وسوم مشوهة مثل lt;a href=... أو target="_blank" أو font
+    s = s.replaceAll(RegExp(r'(lt;|gt;|href=|target=|font|color=)[^\s]*', caseSensitive: false), ' ');
+    // مسح الروابط الطويلة من داخل النص
+    s = s.replaceAll(RegExp(r'https?:\/\/[^\s]+'), ' ');
+    s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return s;
+  }
+
+  // بناء ملخص عربي نظيف وأنيق 100% للخبر أو الفيديو
+  String _cleanSummaryText(String rawHtml, String cleanTitle, String sourceName) {
+    String text = _stripHtmlCompletly(rawHtml);
+
+    if (text.startsWith(cleanTitle)) {
+      text = text.substring(cleanTitle.length).trim();
     }
     if (text.endsWith(sourceName)) {
       text = text.substring(0, text.length - sourceName.length).trim();
     }
-    text = text.replaceAll(RegExp(r'^[-–—:\s]+'), '').trim();
+    text = text.replaceAll(RegExp(r'^[-–—:\s•|]+'), '').trim();
 
-    if (text.length < 25) {
-      return "تغطية إخبارية حول: $fallbackTitle — وردت عبر ($sourceName) ضمن متابعة مستجدات قطاع التربية والتعليم. اضغط لفتح المقال الكامل.";
+    // إذا كان المصدر (مثل Google News) لا يرسل سوى العنوان المكرر داخل كود HTML، نولد ملخصاً إخبارياً واضحاً ومنسقاً
+    if (text.length < 30 || text == cleanTitle || text.contains("news.google")) {
+      return "تفاصيل الخبر: «$cleanTitle» — صادر عبر ($sourceName) ضمن التغطية المستمرة لمستجدات قطاع التربية والتعليم في الجزائر. اضغط على زر المصدر بالأسفل لمطالعة النص الكامل أو مشاهدة التقرير.";
     }
-    return text.length > 380 ? "${text.substring(0, 380)}..." : text;
+    return text.length > 360 ? "${text.substring(0, 360)}..." : text;
   }
 
   String _extractTagContent(String xml, String tag) {
@@ -385,12 +458,12 @@ class _NewsDashboardState extends State
           fetched = true;
           final List items = data["items"] as List;
           for (var item in items) {
-            final String rawTitle = (item["title"] ?? "").toString().trim();
+            final String rawTitle = _stripHtmlCompletly((item["title"] ?? "").toString());
             if (rawTitle.isEmpty) continue;
 
             String cleanTitle = rawTitle;
             String extractedSource =
-                qType == "tv" ? "تقرير تلفزيوني / فيديو" : "الصحافة المكتوبة";
+                qType == "tv" ? "تقرير تلفزيوني / يوتيوب" : "المواقع الإخبارية";
             if (rawTitle.contains(" - ")) {
               final splitParts = rawTitle.split(" - ");
               extractedSource = splitParts.last.trim();
@@ -415,11 +488,16 @@ class _NewsDashboardState extends State
                 link.contains("youtu.be") ||
                 cleanTitle.contains("فيديو") ||
                 cleanTitle.contains("تقرير") ||
-                cleanTitle.contains("شاهد");
+                cleanTitle.contains("روبورتاج") ||
+                cleanTitle.contains("شاهد") ||
+                extractedSource.contains("النهار") ||
+                extractedSource.contains("الشروق نيوز") ||
+                extractedSource.contains("البلاد") ||
+                extractedSource.contains("التلفزيون");
 
             String category = isTissemsilt
                 ? "تيسمسيلت"
-                : (isVideoItem ? "تقارير وفيديوهات" : "الصحافة الوطنية");
+                : (isVideoItem ? "القنوات واليوتيوب" : "المواقع والصحافة");
 
             results.add({
               "title": cleanTitle,
@@ -446,20 +524,20 @@ class _NewsDashboardState extends State
           final parts = xmlBody.split("<item>");
           for (int i = 1; i < parts.length && i <= 15; i++) {
             final itemXml = parts[i];
-            String rawTitle = _extractTagContent(itemXml, "title");
+            String rawTitle = _stripHtmlCompletly(_extractTagContent(itemXml, "title"));
             final link = _extractTagContent(itemXml, "link");
             final rawDate = _extractTagContent(itemXml, "pubDate");
             final rawDesc = _extractTagContent(itemXml, "description");
-            String source = _extractTagContent(itemXml, "source");
+            String source = _stripHtmlCompletly(_extractTagContent(itemXml, "source"));
 
             if (rawTitle.isEmpty) continue;
-            if (source.isEmpty && rawTitle.contains(" - ")) {
+            if (rawTitle.contains(" - ")) {
               final sp = rawTitle.split(" - ");
-              source = sp.last.trim();
+              if (source.isEmpty) source = sp.last.trim();
               rawTitle = sp.sublist(0, sp.length - 1).join(" - ").trim();
             }
             if (source.isEmpty) {
-              source = qType == "tv" ? "تقرير تلفزيوني" : "الصحافة المكتوبة";
+              source = qType == "tv" ? "قناة تلفزيونية / يوتيوب" : "موقع إخباري";
             }
 
             final Map timeInfo = _parseRealTime(rawDate);
@@ -473,7 +551,8 @@ class _NewsDashboardState extends State
                 link.contains("youtube.com") ||
                 link.contains("youtu.be") ||
                 rawTitle.contains("فيديو") ||
-                rawTitle.contains("تقرير");
+                rawTitle.contains("تقرير") ||
+                rawTitle.contains("شاهد");
 
             results.add({
               "title": rawTitle,
@@ -481,7 +560,7 @@ class _NewsDashboardState extends State
               "source": source,
               "category": isTissemsilt
                   ? "تيسمسيلت"
-                  : (isVideoItem ? "تقارير وفيديوهات" : "الصحافة الوطنية"),
+                  : (isVideoItem ? "القنوات واليوتيوب" : "المواقع والصحافة"),
               "type": isVideoItem ? "tv" : "press",
               "time": timeInfo["display"],
               "timestamp": timeInfo["timestamp"],
@@ -496,7 +575,7 @@ class _NewsDashboardState extends State
     return results;
   }
 
-  // محرك الجلب المتوازي الموسع (16 قناة تغطي كل مصطلحات التربية والتعليم في الجزائر)
+  // محرك الجلب المتوازي الشامل (18 قناة تغطي تيسمسيلت، المواقع الإلكترونية، القنوات التلفزيونية، واليوتيوب)
   Future runFastParallelEngine() async {
     if (isScanning) return;
     setState(() => isScanning = true);
@@ -506,33 +585,29 @@ class _NewsDashboardState extends State
     final String timeFilter = "when:${maxDaysOld}d";
 
     final List queries = [
-      // 1. أخبار تيسمسيلت وبلدياتها
+      // 1. أخبار ولاية تيسمسيلت وبلدياتها
       {"q": "تيسمسيلت تربية OR مديرية التربية تيسمسيلت $timeFilter", "type": "press", "forceLocal": true},
       {"q": "ولاية تيسمسيلت مدارس OR ثانوية OR متوسطة OR ابتدائية $timeFilter", "type": "press", "forceLocal": true},
       {"q": "تيسمسيلت (ثنية الحد OR برج بونعامة OR خميستي OR لرجام OR عماري) $timeFilter", "type": "press", "forceLocal": true},
 
-      // 2. الوزارة والمديريات الولائية والقرارات الرسمية
+      // 2. المواقع الإلكترونية والصحف الوطنية (كل ما يقال عن التعليم والتربية في الجزائر)
       {"q": "وزارة التربية الوطنية الجزائر OR وزير التربية $timeFilter", "type": "press", "forceLocal": false},
       {"q": "مديرية التربية الجزائر OR مديريات التربية الولائية $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "قطاع التربية والتعليم في الجزائر OR المنظومة التربوية $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "قطاع التربية والتعليم في الجزائر OR المنظومة التربوية OR المدارس الجزائرية $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "البكالوريا الجزائر OR شهادة التعليم المتوسط OR البيام OR تقييم المكتسبات $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "مسابقة الأساتذة OR توظيف التربية OR نتائج مسابقة التوظيف الجزائر $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "مدير متوسطة OR مدير ثانوية OR مفتش التربية OR مشرف تربية OR مقتصد $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "فضاء الأولياء OR الأرضية الرقمية وزارة التربية OR منحة التمدرس OR الكتاب المدرسي $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "نقابات التربية الجزائر OR القانون الأساسي لعمال التربية OR الإدماج $timeFilter", "type": "press", "forceLocal": false},
+      {"q": "(الشروق أونلاين OR النهار أونلاين OR الخبر OR البلاد نت OR الجزائر الجديدة) التربية $timeFilter", "type": "press", "forceLocal": false},
 
-      // 3. الامتحانات الوطنية والتقييمات البيداغوجية
-      {"q": "البكالوريا الجزائر OR شهادة التعليم المتوسط OR البيام $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "تقييم المكتسبات OR الاختبارات الفصلية OR العطل المدرسية الجزائر $timeFilter", "type": "press", "forceLocal": false},
-
-      // 4. المسابقات المهنية، التوظيف، والرتب الإدارية والتربوية
-      {"q": "مسابقة الأساتذة OR توظيف التربية الجزائر OR الإدماج $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "مدير متوسطة OR مدير ثانوية OR مفتش التربية OR أستاذ مكون الجزائر $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "مشرف التربية OR مستشار التوجيه OR مقتصد الجزائر $timeFilter", "type": "press", "forceLocal": false},
-
-      // 5. الرقمنة، الخدمات الاجتماعية، والنقابات
-      {"q": "فضاء الأولياء OR الأرضية الرقمية وزارة التربية OR كشف النقاط $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "منحة التمدرس OR الكتاب المدرسي OR المطاعم المدرسية الجزائر $timeFilter", "type": "press", "forceLocal": false},
-      {"q": "نقابات التربية الجزائر OR القانون الأساسي لعمال التربية $timeFilter", "type": "press", "forceLocal": false},
-
-      // 6. تقارير متلفزة وفيديوهات يوتيوب حول التربية ومديرياتها
-      {"q": "(تقرير OR فيديو OR روبورتاج) مديرية التربية الجزائر OR وزارة التربية $timeFilter", "type": "tv", "forceLocal": false},
-      {"q": "(قناة النهار OR الشروق نيوز OR قناة البلاد OR التلفزيون الجزائري) التربية $timeFilter", "type": "tv", "forceLocal": false},
+      // 3. القنوات التلفزيونية الجزائرية والتقارير المصورة واليوتيوب حول التعليم
+      {"q": "(قناة النهار OR الشروق نيوز) التربية OR التعليم OR المدارس OR الأساتذة $timeFilter", "type": "tv", "forceLocal": false},
+      {"q": "(قناة البلاد OR التلفزيون الجزائري OR قناة الحياة OR الوطنية TV) التربية OR التعليم $timeFilter", "type": "tv", "forceLocal": false},
+      {"q": "(تقرير OR فيديو OR روبورتاج OR تغطية) مديرية التربية OR قطاع التربية الجزائر $timeFilter", "type": "tv", "forceLocal": false},
+      {"q": "(تقرير تلفزيوني OR شاهد OR بالصور والفيديو) مدارس الجزائر OR التلاميذ OR الامتحانات $timeFilter", "type": "tv", "forceLocal": false},
+      {"q": "site:youtube.com وزارة التربية الوطنية الجزائر OR مديرية التربية $timeFilter", "type": "tv", "forceLocal": false},
+      {"q": "site:youtube.com أخبار التربية والتعليم الجزائر OR مسابقة الأساتذة OR البكالوريا $timeFilter", "type": "tv", "forceLocal": false},
     ];
 
     final List<List> allBatches =
@@ -547,6 +622,18 @@ class _NewsDashboardState extends State
           newsList.add(item);
           addedCount++;
         }
+      }
+    }
+
+    // تنظيف أي ملخص قديم يحتوي على أكواد HTML مشوهة من النسخة السابقة
+    for (var item in newsList) {
+      if (item is Map) {
+        item['title'] = _stripHtmlCompletly((item['title'] ?? '').toString());
+        item['summary'] = _cleanSummaryText(
+          (item['summary'] ?? '').toString(),
+          item['title'].toString(),
+          (item['source'] ?? 'المصدر').toString(),
+        );
       }
     }
 
@@ -572,8 +659,8 @@ class _NewsDashboardState extends State
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'تم التحديث الفوري: إضافة $addedCount خبر وتقرير تربوي جديد.'),
-          backgroundColor: Colors.green.shade800,
+              'اكتمل التحديث الفائق: تم جلب $addedCount خبر وتقرير تلفزيوني جديد.'),
+          backgroundColor: const Color(0xFF0D9488),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -587,8 +674,8 @@ class _NewsDashboardState extends State
     setState(() => isCustomSearching = true);
 
     final customQueries = [
-      {"q": "$cleanTopic التربية الجزائر", "type": "press", "forceLocal": cleanTopic.contains("تيسمسيلت")},
-      {"q": "$cleanTopic فيديو OR تقرير OR يوتيوب", "type": "tv", "forceLocal": cleanTopic.contains("تيسمسيلت")},
+      {"q": "$cleanTopic التربية والتعليم الجزائر", "type": "press", "forceLocal": cleanTopic.contains("تيسمسيلت")},
+      {"q": "$cleanTopic (فيديو OR تقرير OR قناة النهار OR الشروق OR البلاد OR يوتيوب)", "type": "tv", "forceLocal": cleanTopic.contains("تيسمسيلت")},
     ];
 
     final batches = await Future.wait(
@@ -611,9 +698,9 @@ class _NewsDashboardState extends State
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(found > 0
-              ? 'تم العثور على $found نتيجة جديدة حول "$cleanTopic"'
-              : 'تم عرض النتائج المطابقة لـ "$cleanTopic" في القائمة'),
-          backgroundColor: const Color(0xFF0F2557),
+              ? 'تم جلب $found خبر وفيديو جديد حول "$cleanTopic"'
+              : 'تمت فلترة الأخبار المعروضة حول "$cleanTopic"'),
+          backgroundColor: const Color(0xFF0A1931),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -630,7 +717,7 @@ class _NewsDashboardState extends State
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       builder: (ctx) {
         return Padding(
@@ -641,7 +728,7 @@ class _NewsDashboardState extends State
             children: [
               Center(
                 child: Container(
-                  width: 40,
+                  width: 44,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
@@ -652,29 +739,40 @@ class _NewsDashboardState extends State
               ),
               Row(
                 children: [
-                  Icon(
-                    isTv
-                        ? Icons.ondemand_video
-                        : (isFb ? Icons.facebook : Icons.newspaper),
-                    color: isTv ? Colors.red.shade700 : const Color(0xFF0F2557),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isTv
+                          ? Colors.red.shade50
+                          : (isFb ? Colors.blue.shade50 : Colors.teal.shade50),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isTv
+                          ? Icons.live_tv_rounded
+                          : (isFb ? Icons.facebook_rounded : Icons.public_rounded),
+                      color: isTv
+                          ? Colors.red.shade700
+                          : (isFb ? const Color(0xFF1877F2) : Colors.teal.shade700),
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       (item["source"] ?? "").toString(),
                       style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: Color(0xFF0F2557)),
+                          color: Color(0xFF0A1931)),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.pop(ctx),
                   )
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -685,7 +783,7 @@ class _NewsDashboardState extends State
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.access_time,
+                    const Icon(Icons.schedule_rounded,
                         size: 15, color: Colors.deepOrange),
                     const SizedBox(width: 6),
                     Text(
@@ -699,28 +797,44 @@ class _NewsDashboardState extends State
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                "عنوان الخبر:",
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                (item["title"] ?? "").toString(),
-                style: const TextStyle(
-                    fontSize: 17.5,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F2557),
-                    height: 1.4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A1931).withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border(
+                    right: BorderSide(color: Colors.amber.shade700, width: 4),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "عنوان الخبر:",
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueGrey),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      (item["title"] ?? "").toString(),
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0A1931),
+                          height: 1.4),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF4F6FB),
+                  color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.indigo.shade100),
                 ),
@@ -729,11 +843,11 @@ class _NewsDashboardState extends State
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.notes,
-                            size: 16, color: Colors.amber.shade800),
+                        Icon(Icons.auto_stories_rounded,
+                            size: 16, color: Colors.amber.shade900),
                         const SizedBox(width: 6),
                         Text(
-                          isTv ? "ملخص التقرير / الفيديو:" : "ملخص الخبر:",
+                          isTv ? "ملخص التقرير المتلفز / الفيديو:" : "ملخص الخبر الوافي:",
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
@@ -743,7 +857,7 @@ class _NewsDashboardState extends State
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      (item["summary"] ?? item["title"] ?? "").toString(),
+                      (item["summary"] ?? "").toString(),
                       style: const TextStyle(
                           fontSize: 14.5, height: 1.65, color: Colors.black87),
                     ),
@@ -753,25 +867,25 @@ class _NewsDashboardState extends State
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 50,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        isTv ? Colors.red.shade700 : const Color(0xFF0F2557),
+                        isTv ? Colors.red.shade700 : const Color(0xFF0A1931),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: () {
                     Navigator.pop(ctx);
                     _openNewsLink((item["url"] ?? "").toString());
                   },
                   icon: Icon(
-                      isTv ? Icons.play_circle_fill : Icons.open_in_new),
+                      isTv ? Icons.play_circle_fill_rounded : Icons.open_in_new_rounded),
                   label: Text(
                     isTv
-                        ? "مشاهدة التقرير / الفيديو كاملاً"
-                        : "قراءة المقال كاملاً من المصدر",
+                        ? "مشاهدة الفيديو / التقرير من المصدر"
+                        : "الدخول للموقع وقراءة المقال الكامل",
                     style: const TextStyle(
                         fontSize: 15, fontWeight: FontWeight.bold),
                   ),
@@ -784,7 +898,8 @@ class _NewsDashboardState extends State
     );
   }
 
-  void _showAddFacebookModal({
+  // نافذة إضافة ومشاركة الروابط مع استخراج تلقائي لعنوان الخبر من فيسبوك ويوتيوب والمواقع
+  void _showAddShareModal({
     String prefillUrl = "",
     String prefillTitle = "",
     String defaultCategory = "تيسمسيلت",
@@ -793,17 +908,36 @@ class _NewsDashboardState extends State
     final titleController = TextEditingController(text: prefillTitle);
     final summaryController = TextEditingController();
     String selectedCategory = defaultCategory;
+    bool isFetchingTitle = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            // إذا تم تمرير رابط من المشاركة الخارجية ولم يكن له عنوان، نجلبه تلقائياً فوراً
+            if (prefillUrl.isNotEmpty &&
+                titleController.text.trim().isEmpty &&
+                !isFetchingTitle) {
+              isFetchingTitle = true;
+              _autoFetchLinkMetadata(prefillUrl).then((meta) {
+                if (meta["title"] != null && meta["title"]!.isNotEmpty) {
+                  setModalState(() {
+                    titleController.text = meta["title"]!;
+                    if (meta["author"] != null && meta["author"]!.isNotEmpty) {
+                      summaryController.text =
+                          "تغطية مصورة / منشور من حساب (${meta["author"]}) حول: ${meta["title"]}";
+                    }
+                  });
+                }
+              });
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 20,
@@ -811,151 +945,202 @@ class _NewsDashboardState extends State
                 right: 20,
                 top: 20,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.share,
-                          color: Color(0xFF1877F2), size: 26),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text(
-                          "نشر خبر أو فيديو للجميع",
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1877F2).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.add_link_rounded,
+                              color: Color(0xFF1877F2), size: 26),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: linkController,
-                    decoration: InputDecoration(
-                      labelText: "رابط المنشور أو الفيديو (فيسبوك / يوتيوب)",
-                      prefixIcon: const Icon(Icons.link),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            "إضافة خبر (فيسبوك / يوتيوب / موقع إلكتروني)",
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(context),
+                        )
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: titleController,
-                    decoration: InputDecoration(
-                      labelText: "عنوان الخبر",
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: summaryController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: "ملخص الخبر (يظهر للمطالعين داخل البطاقة)",
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField(
-                    value: selectedCategory,
-                    decoration: InputDecoration(
-                      labelText: "القسم المناسب",
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                          value: "تيسمسيلت",
-                          child: Text("أخبار تيسمسيلت (أولوية)")),
-                      DropdownMenuItem(
-                          value: "الصحافة الوطنية",
-                          child: Text("الصحافة الوطنية - وزارة التربية")),
-                      DropdownMenuItem(
-                          value: "تقارير وفيديوهات",
-                          child: Text("تقارير متلفزة وفيديوهات")),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setModalState(() => selectedCategory = val.toString());
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F2557),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: linkController,
+                      onChanged: (val) async {
+                        if (val.startsWith("http") &&
+                            titleController.text.trim().isEmpty) {
+                          final meta = await _autoFetchLinkMetadata(val.trim());
+                          if (meta["title"] != null &&
+                              meta["title"]!.isNotEmpty) {
+                            setModalState(() {
+                              titleController.text = meta["title"]!;
+                            });
+                          }
+                        }
+                      },
+                      decoration: InputDecoration(
+                        labelText: "رابط الخبر أو الفيديو (فيسبوك، يوتيوب، موقع...)",
+                        prefixIcon: const Icon(Icons.link_rounded),
+                        suffixIcon: IconButton(
+                          tooltip: "جلب عنوان الخبر تلقائياً من الرابط",
+                          icon: const Icon(Icons.auto_fix_high_rounded,
+                              color: Color(0xFFD97706)),
+                          onPressed: () async {
+                            if (linkController.text.trim().isEmpty) return;
+                            final meta = await _autoFetchLinkMetadata(
+                                linkController.text.trim());
+                            if (meta["title"] != null &&
+                                meta["title"]!.isNotEmpty) {
+                              setModalState(() {
+                                titleController.text = meta["title"]!;
+                              });
+                            }
+                          },
+                        ),
+                        border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      icon: const Icon(Icons.send),
-                      label: const Text("نشر للجميع الآن",
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.bold)),
-                      onPressed: () async {
-                        if (titleController.text.trim().isEmpty &&
-                            linkController.text.trim().isEmpty) return;
-
-                        String finalUrl = linkController.text.trim().isEmpty
-                            ? "https://www.facebook.com"
-                            : linkController.text.trim();
-                        final bool isYt = finalUrl.contains("youtube.com") ||
-                            finalUrl.contains("youtu.be");
-                        final int nowTs = DateTime.now().millisecondsSinceEpoch;
-                        final nowInfo =
-                            _parseRealTime(DateTime.now().toIso8601String());
-
-                        final String finalTitle =
-                            titleController.text.trim().isEmpty
-                                ? (isYt
-                                    ? "فيديو تربوي عبر يوتيوب"
-                                    : "منشور تربوي عبر فيسبوك")
-                                : titleController.text.trim();
-
-                        final String finalSummary =
-                            summaryController.text.trim().isEmpty
-                                ? "منشور تربوي مشارك عبر بوابة التطبيق — اضغط لفتح الرابط الأصلي ومتابعة التفاصيل."
-                                : summaryController.text.trim();
-
-                        final String sourceName =
-                            isYt ? "قناة يوتيوب التربوية" : "بوابة فيسبوك التربوية";
-                        final String itemType =
-                            (selectedCategory == "تقارير وفيديوهات" || isYt)
-                                ? "tv"
-                                : "facebook";
-
-                        final newPost = {
-                          "title": finalTitle,
-                          "summary": finalSummary,
-                          "source": sourceName,
-                          "category": selectedCategory,
-                          "type": itemType,
-                          "time": nowInfo["display"],
-                          "timestamp": nowTs,
-                          "url": finalUrl,
-                          "important": selectedCategory == "تيسمسيلت",
-                        };
-
-                        setState(() {
-                          newsList.insert(0, newPost);
-                        });
-                        Navigator.pop(context);
-                        await _publishPostToCloud(newPost);
-                        await _saveNewsToStorage();
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: titleController,
+                      decoration: InputDecoration(
+                        labelText: "عنوان الخبر البارز في التطبيق (مهم)",
+                        hintText: "اكتب عنواناً واضحاً للخبر أو الفيديو...",
+                        prefixIcon: const Icon(Icons.title_rounded),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: summaryController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: "ملخص الخبر (اختياري - يتولد تلقائياً إن تركته فارغاً)",
+                        prefixIcon: const Icon(Icons.notes_rounded),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField(
+                      value: selectedCategory,
+                      decoration: InputDecoration(
+                        labelText: "القسم المناسب",
+                        prefixIcon: const Icon(Icons.category_rounded),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: "تيسمسيلت",
+                            child: Text("أخبار تيسمسيلت (أولوية قصوى)")),
+                        DropdownMenuItem(
+                            value: "المواقع والصحافة",
+                            child: Text("المواقع الإلكترونية والصحافة الوطنية")),
+                        DropdownMenuItem(
+                            value: "القنوات واليوتيوب",
+                            child: Text("التقارير المتلفزة واليوتيوب")),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setModalState(() => selectedCategory = val.toString());
+                        }
                       },
                     ),
-                  )
-                ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0A1931),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: const Icon(Icons.cloud_upload_rounded),
+                        label: const Text("نشر الخبر وعنوانه للجميع الآن",
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold)),
+                        onPressed: () async {
+                          String finalUrl = linkController.text.trim().isEmpty
+                              ? "https://www.facebook.com"
+                              : linkController.text.trim();
+                          final bool isYt = finalUrl.contains("youtube.com") ||
+                              finalUrl.contains("youtu.be");
+                          final bool isFb = finalUrl.contains("facebook.com") ||
+                              finalUrl.contains("fb.watch") ||
+                              finalUrl.contains("fb.com");
+
+                          String finalTitle = titleController.text.trim();
+                          if (finalTitle.isEmpty) {
+                            final meta = await _autoFetchLinkMetadata(finalUrl);
+                            finalTitle = meta["title"] ?? "";
+                          }
+                          if (finalTitle.isEmpty) {
+                            finalTitle = isYt
+                                ? "تقرير مرئي وفيديو تربوي عبر يوتيوب"
+                                : (isFb
+                                    ? "مستجد تربوي هام عبر صفحة فيسبوك"
+                                    : "مقال تربوي عبر موقع إلكتروني");
+                          }
+
+                          final int nowTs =
+                              DateTime.now().millisecondsSinceEpoch;
+                          final nowInfo =
+                              _parseRealTime(DateTime.now().toIso8601String());
+
+                          final String sourceName = isYt
+                              ? "يوتيوب التعليمي"
+                              : (isFb ? "فيسبوك التربوي" : "موقع إلكتروني");
+
+                          final String finalSummary =
+                              summaryController.text.trim().isEmpty
+                                  ? _cleanSummaryText("", finalTitle, sourceName)
+                                  : summaryController.text.trim();
+
+                          final String itemType =
+                              (selectedCategory == "القنوات واليوتيوب" || isYt)
+                                  ? "tv"
+                                  : (isFb ? "facebook" : "press");
+
+                          final newPost = {
+                            "title": finalTitle,
+                            "summary": finalSummary,
+                            "source": sourceName,
+                            "category": selectedCategory,
+                            "type": itemType,
+                            "time": nowInfo["display"],
+                            "timestamp": nowTs,
+                            "url": finalUrl,
+                            "important": selectedCategory == "تيسمسيلت",
+                          };
+
+                          setState(() {
+                            newsList.insert(0, newPost);
+                          });
+                          if (context.mounted) Navigator.pop(context);
+                          await _publishPostToCloud(newPost);
+                          await _saveNewsToStorage();
+                        },
+                      ),
+                    )
+                  ],
+                ),
               ),
             );
           },
@@ -982,7 +1167,7 @@ class _NewsDashboardState extends State
   Widget build(BuildContext context) {
     final List filteredNews = newsList.where((item) {
       bool matchesTab = true;
-      if (selectedTab == "فيسبوك") {
+      if (selectedTab == "فيسبوك والمشاركات") {
         matchesTab = item["type"] == "facebook" || item["cloudId"] != null;
       } else if (selectedTab != "الكل") {
         matchesTab = item["category"] == selectedTab;
@@ -998,15 +1183,22 @@ class _NewsDashboardState extends State
 
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(178),
+        preferredSize: const Size.fromHeight(186),
         child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0A1931), Color(0xFF185ADB)],
+              colors: [Color(0xFF0A1931), Color(0xFF153E90), Color(0xFF1E56A0)],
               begin: Alignment.topRight,
               end: Alignment.bottomLeft,
             ),
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              )
+            ],
           ),
           child: SafeArea(
             child: Column(
@@ -1017,13 +1209,21 @@ class _NewsDashboardState extends State
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(9),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.amber.withOpacity(0.3),
+                              blurRadius: 8,
+                            )
+                          ],
                         ),
-                        child: const Icon(Icons.school,
-                            color: Colors.amberAccent, size: 24),
+                        child: const Icon(Icons.school_rounded,
+                            color: Colors.white, size: 24),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -1039,17 +1239,25 @@ class _NewsDashboardState extends State
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
-                              "متابعة شاملة • ${newsList.length} خبر وتقرير",
-                              style: const TextStyle(
-                                  fontSize: 11.5, color: Colors.amberAccent),
+                            Row(
+                              children: [
+                                const Icon(Icons.verified_rounded,
+                                    color: Colors.amberAccent, size: 13),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "بوابة الجزائر وتيسمسيلت • ${newsList.length} عنوان",
+                                  style: const TextStyle(
+                                      fontSize: 11.5, color: Colors.amberAccent),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
                       PopupMenuButton(
-                        tooltip: "الفترة الزمنية",
-                        icon: const Icon(Icons.tune, color: Colors.white),
+                        tooltip: "نطاق البحث الزمني",
+                        icon: const Icon(Icons.calendar_month_rounded,
+                            color: Colors.white),
                         onSelected: (days) {
                           setState(() {
                             maxDaysOld = int.parse(days.toString());
@@ -1076,8 +1284,8 @@ class _NewsDashboardState extends State
                                 height: 20,
                                 child: CircularProgressIndicator(
                                     color: Colors.amberAccent, strokeWidth: 2))
-                            : const Icon(Icons.sync,
-                                color: Colors.amberAccent, size: 26),
+                            : const Icon(Icons.bolt_rounded,
+                                color: Colors.amberAccent, size: 28),
                       ),
                     ],
                   ),
@@ -1093,7 +1301,7 @@ class _NewsDashboardState extends State
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withOpacity(0.12),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         )
@@ -1104,17 +1312,17 @@ class _NewsDashboardState extends State
                       onChanged: (val) => setState(() => searchQuery = val),
                       onSubmitted: (val) => _searchCustomTopicOnline(val),
                       decoration: InputDecoration(
-                        hintText: "ابحث في العناوين (مسابقة، مدير، منحة، بكالوريا...)",
+                        hintText: "اكتب عنواناً للبحث (مسابقة، قناة، مديرية، بكالوريا...)",
                         hintStyle: TextStyle(
-                            fontSize: 12.5, color: Colors.grey.shade500),
-                        prefixIcon: const Icon(Icons.search,
-                            color: Color(0xFF0F2557), size: 20),
+                            fontSize: 12, color: Colors.grey.shade500),
+                        prefixIcon: const Icon(Icons.manage_search_rounded,
+                            color: Color(0xFF0A1931), size: 22),
                         suffixIcon: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (searchQuery.isNotEmpty)
                               IconButton(
-                                icon: const Icon(Icons.clear,
+                                icon: const Icon(Icons.clear_rounded,
                                     size: 18, color: Colors.grey),
                                 onPressed: () {
                                   _searchController.clear();
@@ -1127,9 +1335,11 @@ class _NewsDashboardState extends State
                               child: Container(
                                 margin: const EdgeInsets.all(5),
                                 padding:
-                                    const EdgeInsets.symmetric(horizontal: 10),
+                                    const EdgeInsets.symmetric(horizontal: 12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFD97706),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 alignment: Alignment.center,
@@ -1139,12 +1349,19 @@ class _NewsDashboardState extends State
                                         height: 14,
                                         child: CircularProgressIndicator(
                                             color: Colors.white, strokeWidth: 2))
-                                    : const Text(
-                                        "بحث حي",
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.bold),
+                                    : const Row(
+                                        children: [
+                                          Icon(Icons.travel_explore_rounded,
+                                              color: Colors.white, size: 14),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            "بحث شامل",
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
                                       ),
                               ),
                             ),
@@ -1169,13 +1386,53 @@ class _NewsDashboardState extends State
                   indicatorWeight: 3,
                   dividerColor: Colors.transparent,
                   labelStyle: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13.5),
+                      fontWeight: FontWeight.bold, fontSize: 13),
                   tabs: const [
-                    Tab(text: "الكل"),
-                    Tab(text: "تيسمسيلت"),
-                    Tab(text: "الصحافة الوطنية"),
-                    Tab(text: "تقارير وفيديوهات"),
-                    Tab(text: "فيسبوك"),
+                    Tab(
+                      child: Row(
+                        children: [
+                          Icon(Icons.dashboard_rounded, size: 16),
+                          SizedBox(width: 5),
+                          Text("الكل"),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        children: [
+                          Icon(Icons.location_on_rounded, size: 16),
+                          SizedBox(width: 5),
+                          Text("تيسمسيلت"),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        children: [
+                          Icon(Icons.public_rounded, size: 16),
+                          SizedBox(width: 5),
+                          Text("المواقع والصحافة"),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        children: [
+                          Icon(Icons.live_tv_rounded, size: 16),
+                          SizedBox(width: 5),
+                          Text("القنوات واليوتيوب"),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        children: [
+                          Icon(Icons.facebook_rounded, size: 16),
+                          SizedBox(width: 5),
+                          Text("فيسبوك والمشاركات"),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -1191,7 +1448,7 @@ class _NewsDashboardState extends State
                   CircularProgressIndicator(),
                   SizedBox(height: 14),
                   Text(
-                    "جاري جلب أحدث الأخبار والتقارير التربوية...",
+                    "جاري جلب أحدث العناوين من المواقع والقنوات التلفزيونية...",
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -1204,7 +1461,7 @@ class _NewsDashboardState extends State
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.manage_search,
+                        Icon(Icons.travel_explore_rounded,
                             size: 64, color: Colors.indigo.shade200),
                         const SizedBox(height: 12),
                         Text(
@@ -1223,14 +1480,14 @@ class _NewsDashboardState extends State
                             ),
                             onPressed: () =>
                                 _searchCustomTopicOnline(searchQuery),
-                            icon: const Icon(Icons.travel_explore),
-                            label: Text('ابحث في الإنترنت عن "$searchQuery"'),
+                            icon: const Icon(Icons.travel_explore_rounded),
+                            label: Text('ابحث في المواقع والقنوات عن "$searchQuery"'),
                           )
                         else
                           ElevatedButton.icon(
                             onPressed: runFastParallelEngine,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text("تحديث الأخبار الآن"),
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text("جلب الأخبار الآن"),
                           ),
                       ],
                     ),
@@ -1239,95 +1496,123 @@ class _NewsDashboardState extends State
               : RefreshIndicator(
                   onRefresh: runFastParallelEngine,
                   child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 85),
                     itemCount: filteredNews.length,
                     itemBuilder: (context, index) {
                       final item = filteredNews[index] as Map;
                       final bool isImportant = item["important"] == true;
                       final String type = (item["type"] ?? "press").toString();
 
-                      IconData badgeIcon = Icons.newspaper;
+                      IconData badgeIcon = Icons.public_rounded;
                       Color badgeColor = const Color(0xFF0D9488);
+                      String typeLabel = "موقع إخباري";
                       if (type == "facebook") {
-                        badgeIcon = Icons.facebook;
+                        badgeIcon = Icons.facebook_rounded;
                         badgeColor = const Color(0xFF1877F2);
+                        typeLabel = "فيسبوك";
                       } else if (type == "tv") {
-                        badgeIcon = Icons.ondemand_video;
+                        badgeIcon = Icons.live_tv_rounded;
                         badgeColor = const Color(0xFFDC2626);
+                        typeLabel = "تقرير مرئي / قناة";
                       }
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
+                        margin: const EdgeInsets.only(bottom: 14),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(18),
                           border: Border.all(
                             color: isImportant
                                 ? Colors.amber.shade600
                                 : Colors.grey.shade200,
-                            width: isImportant ? 1.5 : 1,
+                            width: isImportant ? 1.6 : 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             )
                           ],
                         ),
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(18),
                           onTap: () => _showArticleSummarySheet(item),
                           child: Padding(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.all(15),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.all(6),
+                                      padding: const EdgeInsets.all(7),
                                       decoration: BoxDecoration(
-                                        color: badgeColor.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
+                                        color: badgeColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Icon(badgeIcon,
-                                          size: 16, color: badgeColor),
+                                          size: 18, color: badgeColor),
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      child: Text(
-                                        (item["source"] ?? "").toString(),
-                                        style: TextStyle(
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: badgeColor),
-                                        overflow: TextOverflow.ellipsis,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            (item["source"] ?? "").toString(),
+                                            style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: badgeColor),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            typeLabel,
+                                            style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey.shade500),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     if (isImportant)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3),
+                                            horizontal: 9, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: Colors.amber.shade100,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.amber.shade100,
+                                              Colors.amber.shade200
+                                            ],
+                                          ),
                                           borderRadius:
-                                              BorderRadius.circular(6),
+                                              BorderRadius.circular(8),
                                         ),
-                                        child: Text(
-                                          "تيسمسيلت",
-                                          style: TextStyle(
-                                              fontSize: 10.5,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.amber.shade900),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.star_rounded,
+                                                size: 13,
+                                                color: Colors.amber.shade900),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              "تيسمسيلت",
+                                              style: TextStyle(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.amber.shade900),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                   ],
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    Icon(Icons.schedule,
+                                    Icon(Icons.access_time_filled_rounded,
                                         size: 13, color: Colors.grey.shade500),
                                     const SizedBox(width: 4),
                                     Text(
@@ -1335,22 +1620,51 @@ class _NewsDashboardState extends State
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey.shade600,
-                                          fontWeight: FontWeight.w500),
+                                          fontWeight: FontWeight.w600),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 10),
-                                // عنوان الخبر البارز
-                                Text(
-                                  (item["title"] ?? "").toString(),
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF0F2557),
-                                      height: 1.35),
+                                // صندوق عنوان الخبر البارز
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0A1931)
+                                        .withOpacity(0.03),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border(
+                                      right: BorderSide(
+                                          color: badgeColor, width: 3.5),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "عنوان الخبر:",
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: badgeColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        (item["title"] ?? "").toString(),
+                                        style: const TextStyle(
+                                            fontSize: 15.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF0A1931),
+                                            height: 1.38),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
-                                // صندوق ملخص الخبر الواضح
+                                // صندوق الملخص النظيف تماماً من أي كود
                                 Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(10),
@@ -1364,18 +1678,25 @@ class _NewsDashboardState extends State
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        "ملخص الخبر:",
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.amber.shade900,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.short_text_rounded,
+                                              size: 15,
+                                              color: Colors.amber.shade900),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            "ملخص الخبر:",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.amber.shade900,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 3),
+                                      const SizedBox(height: 4),
                                       Text(
-                                        (item["summary"] ?? item["title"] ?? "")
-                                            .toString(),
+                                        (item["summary"] ?? "").toString(),
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -1394,28 +1715,33 @@ class _NewsDashboardState extends State
                                           _showArticleSummarySheet(item),
                                       icon: Icon(
                                           type == "tv"
-                                              ? Icons.play_circle_outline
-                                              : Icons.article_outlined,
-                                          size: 17),
+                                              ? Icons.play_circle_fill_rounded
+                                              : Icons.menu_book_rounded,
+                                          size: 17,
+                                          color: badgeColor),
                                       label: Text(
                                         type == "tv"
-                                            ? "ملخص الفيديو"
+                                            ? "تفاصيل الفيديو"
                                             : "قراءة الملخص الكامل",
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: badgeColor),
                                       ),
                                     ),
                                     TextButton.icon(
                                       onPressed: () => _openNewsLink(
                                           (item["url"] ?? "").toString()),
-                                      icon:
-                                          const Icon(Icons.open_in_new, size: 15),
-                                      label: const Text("المصدر"),
+                                      icon: const Icon(
+                                          Icons.open_in_new_rounded,
+                                          size: 15),
+                                      label: const Text("فتح المصدر"),
                                     ),
                                     const Spacer(),
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline,
-                                          color: Colors.redAccent, size: 20),
+                                      icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          color: Colors.redAccent,
+                                          size: 20),
                                       onPressed: () async {
                                         final cloudId = item['cloudId'];
                                         setState(() {
@@ -1441,12 +1767,12 @@ class _NewsDashboardState extends State
                   ),
                 ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF0F2557),
+        backgroundColor: const Color(0xFF0A1931),
         foregroundColor: Colors.white,
-        elevation: 4,
-        onPressed: () => _showAddFacebookModal(),
-        icon: const Icon(Icons.add_circle_outline),
-        label: const Text("إضافة منشور / فيديو",
+        elevation: 6,
+        onPressed: () => _showAddShareModal(),
+        icon: const Icon(Icons.add_link_rounded, color: Colors.amberAccent),
+        label: const Text("إضافة رابط (فيسبوك / يوتيوب / موقع)",
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
